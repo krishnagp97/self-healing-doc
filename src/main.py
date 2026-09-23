@@ -1,3 +1,4 @@
+from src.llm.reviewer import review_documentation
 import argparse
 from pathlib import Path
 
@@ -7,6 +8,7 @@ from src.linker import link_sections
 from src.change_detector import detect_changes
 from src.impact_analyzer import find_affected_docs
 from src.staleness_verifier import prepare_review_items
+
 
 
 def scan_docs(root):
@@ -109,6 +111,16 @@ def run(old_path, new_path):
                     f"        Current signature : "
                     f"{symbol['signature']}"
                 )
+
+        print("\n   AI Review:")
+    
+        ai_review = review_documentation(item)
+    
+        print(f"   Issue:")
+        print(f"      {ai_review['issue']}")
+    
+        print(f"\n   Suggested update:")
+        print(f"      {ai_review['suggested_update']}")
 
     print("\n" + "=" * 50)
     print(f"Total review items: {len(review_items)}")
