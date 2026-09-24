@@ -2,7 +2,7 @@ from src.llm.reviewer import review_documentation
 import argparse
 from pathlib import Path
 
-from src.scanner import scan_repository
+from src.tree_sitter_scanner import scan_repository
 from src.doc_parser import parse_markdown
 from src.linker import link_sections
 from src.change_detector import detect_changes
