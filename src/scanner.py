@@ -110,12 +110,22 @@ def scan_repository(root_path):
     chunks = []
 
     ignored = {
-        ".git", ".venv", "venv", "__pycache__",
-        "node_modules", "dist", "build",
+      ".git",
+      ".venv",
+      "venv",
+      "__pycache__",
+      "node_modules",
+      "dist",
+      "build",
+      "tests",
+      "temp-old",
+      "temp-new",
     }
 
     for file_path in root.rglob("*.py"):
-        if any(part in ignored for part in file_path.parts):
+        relative_path = file_path.relative_to(root)
+
+        if any(part in ignored for part in relative_path.parts):
             continue
 
         try:

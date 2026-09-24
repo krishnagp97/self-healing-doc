@@ -1,9 +1,13 @@
 class UserService:
     """Manage user records."""
 
-    def get_user(self, user_id: int) -> str:
-        """Fetch a user by ID."""
-        return f"User {user_id}"
+    def get_user(
+    self,
+    user_id: int,
+    include_email: bool = False
+) -> str:
+       """Fetch a user by ID, optionally including email."""
+       return f"User {user_id}"
 
     def delete_user(self, user_id: int, force: bool = False) -> bool:
         """Delete a user record."""
