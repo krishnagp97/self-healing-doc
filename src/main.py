@@ -14,8 +14,23 @@ from src.staleness_verifier import prepare_review_items
 def scan_docs(root):
     """Scan all Markdown files in a repository."""
     sections = []
-
+    ignored = {
+        ".git",
+        ".venv",
+        "venv",
+        "node_modules",
+        "dist",
+        "build",
+        "tests",
+        "temp-old",
+        "temp-new",
+    }
     for file_path in root.rglob("*.md"):
+        relative_path = file_path.relative_to(root)
+
+        if any(part in ignored for part in relative_path.parts):
+            continue
+
         sections.extend(parse_markdown(file_path, root))
 
     return sections
