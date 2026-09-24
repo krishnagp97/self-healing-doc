@@ -49,6 +49,7 @@ Suggested update:
         text = response.text.strip()
 
     except Exception as e:
+        print(f"Gemini error: {e}")
         return {
             "issue": "AI review is temporarily unavailable.",
             "suggested_update": "",
