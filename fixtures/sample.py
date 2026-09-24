@@ -5,7 +5,8 @@ class UserService:
         self,
         user_id: int,
         include_email: bool = False,
-        include_phone: bool = False
+        include_phone: bool = False,
+        include_address: bool = False
     ) -> str:
        """Fetch a user by ID, optionally including email and phone."""
        return f"User {user_id}"
