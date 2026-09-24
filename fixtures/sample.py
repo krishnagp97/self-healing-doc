@@ -1,4 +1,3 @@
-
 class UserService:
     """Manage user records."""
 
@@ -8,6 +7,10 @@ class UserService:
 
     def delete_user(self, user_id: int, force: bool = False) -> bool:
         """Delete a user record."""
+        return True
+
+    def update_user(self, user_id: int, name: str) -> bool:
+        """Update a user's name."""
         return True
 
 
