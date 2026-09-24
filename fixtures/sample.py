@@ -14,6 +14,14 @@ class UserService:
         return True
 
 
-def create_user(name: str, active: bool = True) -> dict:
+def create_user(
+    name: str,
+    active: bool = True,
+    role: str = "user"
+) -> dict:
     """Create a new user."""
-    return {"name": name, "active": active}
+    return {
+    "name": name,
+    "active": active,
+    "role": role,
+}
