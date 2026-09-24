@@ -17,7 +17,7 @@ def test_scan_repository():
 
     assert by_name["UserService.get_user"]["signature"] == (
     "(self, user_id: int, include_email: bool = False, "
-    "include_phone: bool = False) -> str"
+    "include_phone: bool = False, include_address: bool = False) -> str"
     )
     assert by_name["create_user"]["docstring"] == "Create a new user."
     assert by_name["UserService"]["type"] == "class"

@@ -1,6 +1,9 @@
+from pathlib import Path
+
 
 def link_sections(sections, chunks):
-    """Link Markdown sections to code symbols using exact names."""
+    """Link Markdown sections to code symbols using name and path context."""
+
     symbols_by_name = {}
 
     for chunk in chunks:
@@ -16,20 +19,37 @@ def link_sections(sections, chunks):
         matches = symbols_by_name.get(heading, [])
 
         if len(matches) == 1:
-            links.append({
-                "doc_id": section["id"],
-                "code_id": matches[0]["id"],
-                "heading": section["heading"],
-                "symbol": matches[0]["name"],
-            })
-        elif len(matches) == 0:
-            unmatched.append(section["id"])
+            selected = matches[0]
+
+        elif len(matches) > 1:
+            doc_directory = Path(section["file"]).parent
+
+            same_directory = [
+                chunk
+                for chunk in matches
+                if Path(chunk["file"]).parent == doc_directory
+            ]
+
+            if len(same_directory) == 1:
+                selected = same_directory[0]
+            else:
+                ambiguous.append({
+                    "doc_id": section["id"],
+                    "heading": section["heading"],
+                    "code_ids": [chunk["id"] for chunk in matches],
+                })
+                continue
+
         else:
-            ambiguous.append({
-                "doc_id": section["id"],
-                "heading": section["heading"],
-                "code_ids": [chunk["id"] for chunk in matches],
-            })
+            unmatched.append(section["id"])
+            continue
+
+        links.append({
+            "doc_id": section["id"],
+            "code_id": selected["id"],
+            "heading": section["heading"],
+            "symbol": selected["name"],
+        })
 
     return {
         "links": links,
