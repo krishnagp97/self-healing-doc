@@ -99,6 +99,7 @@ jobs:
           fi
 
       - name: Create documentation PR
+        working-directory: snapshots/new
         run: |
           if jq -e 'any(.[]; .updated == true)' "${{ runner.temp }}/review_results.json" > /dev/null; then
             gh pr create \
