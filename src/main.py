@@ -137,12 +137,7 @@ def run(old_path, new_path):
 
         ai_review = review_documentation(item)
 
-        results.append({
-            "file": item["file"],
-            "heading": item["heading"],
-            "success": ai_review["success"],
-            "suggested_update": ai_review["suggested_update"],
-        })
+        updated = False
 
         print("   Issue:")
         print(f"      {ai_review['issue']}")
@@ -165,7 +160,13 @@ def run(old_path, new_path):
                 print("\n   ✗ Documentation section not found.")
         else:
             print("\n   No documentation update suggested.")
-
+        results.append({
+            "file": item["file"],
+            "heading": item["heading"],
+            "success": ai_review["success"],
+            "suggested_update": suggested_update,
+            "updated": updated,
+        })
     print("\n" + "=" * 50)
     print(f"Total review items: {len(review_items)}")
     return results
