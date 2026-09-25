@@ -8,6 +8,7 @@ def update_section(
     heading_level: int = 2,
     preserve_trailing_newline: bool = True,
     test_mode: bool = False,
+    dry_run: bool = False,
 ) -> bool:
     path = Path(file_path)
 
