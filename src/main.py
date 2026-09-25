@@ -8,6 +8,8 @@ from src.linker import link_sections
 from src.change_detector import detect_changes
 from src.impact_analyzer import find_affected_docs
 from src.staleness_verifier import prepare_review_items
+from src.doc_updater import update_section
+
 
 
 
@@ -128,14 +130,30 @@ def run(old_path, new_path):
                 )
 
         print("\n   AI Review:")
-    
+
         ai_review = review_documentation(item)
-    
-        print(f"   Issue:")
+
+        print("   Issue:")
         print(f"      {ai_review['issue']}")
-    
-        print(f"\n   Suggested update:")
-        print(f"      {ai_review['suggested_update']}")
+
+        suggested_update = ai_review["suggested_update"]
+
+        if suggested_update:
+            file_path = new_root / item["file"]
+
+            updated = update_section(
+                file_path=file_path,
+                section_title=item["heading"],
+                new_content=suggested_update,
+                heading_level=item["heading_level"],
+            )
+
+            if updated:
+                print("\n   ✓ Documentation updated.")
+            else:
+                print("\n   ✗ Documentation section not found.")
+        else:
+            print("\n   No documentation update suggested.")
 
     print("\n" + "=" * 50)
     print(f"Total review items: {len(review_items)}")

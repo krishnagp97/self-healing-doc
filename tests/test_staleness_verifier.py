@@ -6,12 +6,16 @@ def test_prepare_review_items():
     sections = [
         {
             "id": "README.md::get_user",
+            "file": "README.md",
             "heading": "get_user",
+            "level": 2,
             "content": "Fetches a user.",
         },
         {
             "id": "README.md::delete_user",
+            "file": "README.md",
             "heading": "delete_user",
+            "level": 2,
             "content": "Deletes a user.",
         },
     ]

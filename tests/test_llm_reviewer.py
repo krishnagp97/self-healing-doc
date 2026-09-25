@@ -5,6 +5,7 @@ from src.llm.reviewer import review_documentation
 
 def test_review_documentation():
     review_item = {
+        "heading": "User Service",
         "content": "The get_user function fetches a user by ID.",
         "changed_symbols": [
             {
