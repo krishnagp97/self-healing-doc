@@ -193,7 +193,7 @@ def main():
         "REVIEW_RESULTS_FILE",
         "review_results.json",
     )
-    with open("review_results.json", "w", encoding="utf-8") as file:
+    with open(output_file, "w", encoding="utf-8") as file:
       json.dump(results, file, indent=2)
 
 
