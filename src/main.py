@@ -9,6 +9,8 @@ from src.change_detector import detect_changes
 from src.impact_analyzer import find_affected_docs
 from src.staleness_verifier import prepare_review_items
 from src.doc_updater import update_section
+import json
+import os
 
 
 
@@ -41,6 +43,8 @@ def scan_docs(root):
 def run(old_path, new_path):
     old_root = Path(old_path).resolve()
     new_root = Path(new_path).resolve()
+
+    results = []
 
     print("\nSelf-Healing Docs")
     print("=" * 50)
@@ -99,7 +103,7 @@ def run(old_path, new_path):
 
     if not review_items:
         print("\n✓ No documentation requires review.")
-        return
+        return []
 
     print("\nDocumentation requiring review")
     print("-" * 50)
@@ -133,6 +137,13 @@ def run(old_path, new_path):
 
         ai_review = review_documentation(item)
 
+        results.append({
+            "file": item["file"],
+            "heading": item["heading"],
+            "success": ai_review["success"],
+            "suggested_update": ai_review["suggested_update"],
+        })
+
         print("   Issue:")
         print(f"      {ai_review['issue']}")
 
@@ -157,6 +168,7 @@ def run(old_path, new_path):
 
     print("\n" + "=" * 50)
     print(f"Total review items: {len(review_items)}")
+    return results
 
 
 def main():
@@ -176,7 +188,13 @@ def main():
 
     args = parser.parse_args()
 
-    run(args.old, args.new)
+    results = run(args.old, args.new)
+    output_file = os.getenv(
+        "REVIEW_RESULTS_FILE",
+        "review_results.json",
+    )
+    with open("review_results.json", "w", encoding="utf-8") as file:
+      json.dump(results, file, indent=2)
 
 
 if __name__ == "__main__":
