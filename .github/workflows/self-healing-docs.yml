@@ -51,5 +51,11 @@ jobs:
         working-directory: tool
         env:
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          REVIEW_RESULTS_FILE: ${{ runner.temp }}/review_results.json
         run: |
           python -m src.main ../snapshots/old ../snapshots/new
+
+      - name: Show review results
+        run: |
+          echo "Review results:"
+          cat "${{ runner.temp }}/review_results.json"
