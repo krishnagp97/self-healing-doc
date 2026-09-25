@@ -7,6 +7,7 @@ def update_section(
     new_content: str,
     heading_level: int = 2,
     preserve_trailing_newline: bool = True,
+    test_mode: bool = False,
 ) -> bool:
     path = Path(file_path)
 
