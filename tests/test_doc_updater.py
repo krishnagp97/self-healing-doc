@@ -95,3 +95,47 @@ Authentication details.
     content = doc.read_text(encoding="utf-8")
 
     assert "Database details." not in content
+
+def test_update_section_with_nested_headings(tmp_path):
+    doc = tmp_path / "README.md"
+
+    doc.write_text(
+        """# Project
+
+## Authentication
+
+Old authentication details.
+
+### JWT
+
+JWT details.
+
+### OAuth
+
+OAuth details.
+
+## Database
+
+Database details.
+""",
+        encoding="utf-8",
+    )
+
+    result = update_section(
+        str(doc),
+        "Authentication",
+        "Updated authentication details.",
+        heading_level=2,
+    )
+
+    assert result is True
+
+    content = doc.read_text(encoding="utf-8")
+
+    assert "Updated authentication details." in content
+    assert "Old authentication details." not in content
+    assert "### JWT" not in content
+    assert "JWT details." not in content
+    assert "### OAuth" not in content
+    assert "OAuth details." not in content
+    assert "## Database" in content

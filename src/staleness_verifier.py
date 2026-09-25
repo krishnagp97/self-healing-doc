@@ -53,10 +53,13 @@ def prepare_review_items(sections, changes, affected_doc_ids, old_links, new_lin
 
         items.append({
             "doc_id": doc_id,
+            "file": section["file"],
             "heading": section["heading"],
+            "heading_level": section["level"],
             "content": section["content"],
             "status": "needs_llm_review",
             "changed_symbols": relevant_symbols,
+            
         })
 
     return items
