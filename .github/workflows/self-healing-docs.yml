@@ -55,7 +55,59 @@ jobs:
         run: |
           python -m src.main ../snapshots/old ../snapshots/new
 
-      - name: Show review results
+      - name: Read review results
+        id: review-results
         run: |
+          RESULTS=$(cat "${{ runner.temp }}/review_results.json")
           echo "Review results:"
-          cat "${{ runner.temp }}/review_results.json"
+          echo "$RESULTS"
+          {
+            echo "results<<EOF"
+            echo "$RESULTS"
+            echo "EOF"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Configure Git
+        run: |
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+      - name: Create documentation branch
+        working-directory: snapshots/new
+        run: |
+          BRANCH="docs/self-healing-${{ github.event.pull_request.number }}"
+          git checkout -b "$BRANCH"
+          echo "DOCS_BRANCH=$BRANCH" >> "$GITHUB_ENV"
+
+      - name: Commit documentation updates
+        working-directory: snapshots/new
+        run: |
+          if jq -e 'any(.[]; .updated == true)' "${{ runner.temp }}/review_results.json" > /dev/null; then
+            git add .
+            git commit -m "docs: update documentation automatically"
+          else
+            echo "No documentation updates to commit."
+          fi
+
+      - name: Push documentation branch
+        working-directory: snapshots/new
+        run: |
+          if jq -e 'any(.[]; .updated == true)' "${{ runner.temp }}/review_results.json" > /dev/null; then
+            git push origin "$DOCS_BRANCH"
+          else
+            echo "No documentation updates to push."
+          fi
+
+      - name: Create documentation PR
+        run: |
+          if jq -e 'any(.[]; .updated == true)' "${{ runner.temp }}/review_results.json" > /dev/null; then
+            gh pr create \
+              --base "${{ github.event.pull_request.base.ref }}" \
+              --head "$DOCS_BRANCH" \
+              --title "docs: update documentation for #${{ github.event.pull_request.number }}" \
+              --body "This PR was automatically created by Self-Healing Docs after reviewing changes from #${{ github.event.pull_request.number }}."
+          else
+            echo "No documentation updates. No PR created."
+          fi
+        env:
+          GH_TOKEN: ${{ github.token }}
