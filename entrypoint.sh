@@ -143,7 +143,7 @@ print("true" if any(item["updated"] for item in results) else "false")
 PY
 )
 
-[ "$UPDATED" != "true" ] || {
+[ "$UPDATED" = "true" ] || {
     echo "No documentation updates. Skipping branch creation."
     exit 0
 }
@@ -158,6 +158,9 @@ cd "$NEW_DIR"
 git checkout -b "$DOCS_BRANCH"
 
 echo "✓ Documentation branch created"
+
+git config --global user.name "github-actions[bot]"
+git config --global user.email "41898282+github-actions[bot]@users.noreply.github.com"
 
 echo ""
 echo "Committing documentation updates..."
