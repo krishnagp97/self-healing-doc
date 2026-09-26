@@ -50,6 +50,7 @@ def update_section(
         + content[next_section:]
     )
 
-    path.write_text(updated_content, encoding="utf-8")
+    if not dry_run:
+        path.write_text(updated_content, encoding="utf-8")
 
     return True
