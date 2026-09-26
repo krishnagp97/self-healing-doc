@@ -6,6 +6,8 @@ if [ -z "$GITHUB_EVENT_PATH" ]; then
     exit 1
 fi
 
+git config --global --add safe.directory "$GITHUB_WORKSPACE"
+
 echo "=========================================="
 echo "       Self-Healing Docs"
 echo "=========================================="
