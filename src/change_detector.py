@@ -32,7 +32,6 @@ def detect_changes(old_chunks, new_chunks):
                 "new": new_chunk,
             })
 
-
     return {
         "added": added,
         "removed": removed,

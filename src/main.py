@@ -170,6 +170,7 @@ def run(old_path, new_path):
             "success": ai_review["success"],
             "suggested_update": suggested_update,
             "updated": updated,
+            "changed_symbols": item["changed_symbols"],
         })
     print("\n" + "=" * 50)
     print(f"Total review items: {len(review_items)}")
