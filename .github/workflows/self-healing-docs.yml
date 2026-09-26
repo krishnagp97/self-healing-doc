@@ -67,6 +67,21 @@ jobs:
             echo "EOF"
           } >> "$GITHUB_OUTPUT"
 
+      - name: Comment on PR when AI review fails
+        run: |
+          if jq -e 'any(.[]; .success == false)' "${{ runner.temp }}/review_results.json" > /dev/null; then
+            gh pr comment "${{ github.event.pull_request.number }}" \
+              --body "⚠️ **Self-Healing Docs:** AI documentation review was temporarily unavailable.
+
+            Gemini could not complete the review because the API quota was exhausted. No documentation changes were made.
+
+            The affected documentation will need to be reviewed again when the AI service is available."
+                      else
+                        echo "AI review completed successfully."
+                      fi
+                    env:
+                      GH_TOKEN: ${{ github.token }}
+
       - name: Configure Git
         run: |
           git config --global user.name "github-actions[bot]"
