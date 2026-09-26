@@ -1,5 +1,7 @@
 name: Self-Healing Docs
+
 description: Automatically detect stale documentation and create documentation updates.
+
 author: Krishna Gopal Pathak
 
 inputs:
@@ -7,8 +9,13 @@ inputs:
     description: Gemini API key used to review documentation.
     required: true
 
+  github-token:
+    description: GitHub token used to comment on pull requests and create documentation PRs.
+    required: true
+
 runs:
   using: docker
   image: Dockerfile
   env:
     GEMINI_API_KEY: ${{ inputs.gemini-api-key }}
+    GITHUB_TOKEN: ${{ inputs.github-token }}

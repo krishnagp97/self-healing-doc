@@ -21,3 +21,4 @@ jobs:
         uses: ./
         with:
           gemini-api-key: ${{ secrets.GEMINI_API_KEY }}
+          github-token: ${{ github.token }}
