@@ -1,4 +1,3 @@
-# workflow trigger test
 name: Self-Healing Docs Review
 
 on:
@@ -78,9 +77,9 @@ jobs:
 
           if jq -e 'any(.[]; .success == false)' "${{ runner.temp }}/review_results.json" > /dev/null; then
             gh pr comment "${{ github.event.pull_request.number }}" --body "$(cat <<'EOF'
-          ⚠️ **Self-Healing Docs:** AI documentation review was temporarily unavailable.
+          WARNING: **Self-Healing Docs:** AI documentation review was temporarily unavailable.
 
-          Gemini could not complete the review because the API quota was exhausted. No documentation changes were made.
+          The AI service could not complete the documentation review. No documentation changes were made.
 
           The affected documentation will need to be reviewed again when the AI service is available.
           EOF
@@ -130,11 +129,37 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           if jq -e 'any(.[]; .updated == true)' "${{ runner.temp }}/review_results.json" > /dev/null; then
+
+            UPDATED_SECTIONS=$(jq -r '
+              .[]
+              | select(.updated == true)
+              | "- \(.file) -> \(.heading)"
+            ' "${{ runner.temp }}/review_results.json")
+
+            CHANGED_SYMBOLS=$(jq -r '
+              .[]
+              | select(.updated == true)
+              | .changed_symbols[]
+              | "- \(.symbol.file)::\(.symbol.name)"
+            ' "${{ runner.temp }}/review_results.json")
+
             gh pr create \
               --base "${{ github.event.pull_request.base.ref }}" \
               --head "$DOCS_BRANCH" \
               --title "docs: update documentation for #${{ github.event.pull_request.number }}" \
-              --body "This PR was automatically created by Self-Healing Docs after reviewing changes from #${{ github.event.pull_request.number }}."
+              --body "$(cat <<EOF
+          ## Self-Healing Docs
+
+          Updated documentation based on changes from #${{ github.event.pull_request.number }}.
+
+          ### Updated sections
+          $UPDATED_SECTIONS
+
+          ### Changed symbols
+          $CHANGED_SYMBOLS
+          EOF
+          )"
+
           else
             echo "No documentation updates. No PR created."
           fi
