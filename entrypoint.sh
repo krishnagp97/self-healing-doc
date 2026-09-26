@@ -83,11 +83,37 @@ api_url = os.environ["GITHUB_API_URL"]
 
 url = f"{api_url}/repos/{repo}/issues/{pr_number}/comments"
 
+documentation = []
+changed_symbols = []
+
+for item in results:
+    if not item["success"]:
+        documentation.append(
+            f"- `{item['file']}` → `{item['heading']}`"
+        )
+
+        for change in item["changed_symbols"]:
+            symbol = change["symbol"]
+
+            changed_symbols.append(
+                f"- `{symbol['file']}::{symbol['name']}`"
+            )
+
 body = """⚠️ **Self-Healing Docs:** AI documentation review was temporarily unavailable.
 
-The AI service could not complete the documentation review. No documentation changes were made.
+The AI service could not complete the documentation review, so no documentation changes were made.
 
-The affected documentation will need to be reviewed again when the AI service is available."""
+### Documentation requiring manual review
+
+""" + "\n".join(documentation) + """
+
+### Related code changes
+
+""" + "\n".join(changed_symbols) + """
+
+Please review the documentation above manually. The documentation may be outdated because the related code was modified.
+
+The Self-Healing Docs Action will not modify documentation when the AI review is unavailable."""
 
 response = requests.post(
     url,
