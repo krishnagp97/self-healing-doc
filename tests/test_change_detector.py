@@ -43,3 +43,29 @@ def test_detect_changes():
     ]
     assert len(changes["modified"]) == 1
     assert changes["modified"][0]["new"]["id"] == "app.py::update_user"
+
+def test_detects_body_change():
+    old_chunks = [
+        {
+            "id": "app.py::update_section",
+            "type": "function",
+            "signature": "def update_section(...):",
+            "body": "return False",
+            "docstring": "",
+        }
+    ]
+
+    new_chunks = [
+        {
+            "id": "app.py::update_section",
+            "type": "function",
+            "signature": "def update_section(...):",
+            "body": "raise ValueError(...)",
+            "docstring": "",
+        }
+    ]
+
+    changes = detect_changes(old_chunks, new_chunks)
+
+    assert len(changes["modified"]) == 1
+    assert changes["modified"][0]["new"]["id"] == "app.py::update_section"

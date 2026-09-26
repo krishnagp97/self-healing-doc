@@ -13,6 +13,7 @@ def test_extract_javascript_symbols():
     assert "createUser" in by_name
 
     assert by_name["UserService"]["type"] == "class"
+    assert "getUser" in by_name["UserService.getUser"]["body"]
     assert by_name["UserService.getUser"]["signature"] == (
         "getUser(userId, includeEmail = false) {"
     )
