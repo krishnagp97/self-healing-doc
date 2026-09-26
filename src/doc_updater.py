@@ -38,7 +38,7 @@ def update_section(
 
         if position != -1:
             next_section = min(next_section, position)
-    # Build the replacement section.
+            
     updated_section = (
         f"{start_marker}\n\n"
         f"{new_content.strip()}\n"
