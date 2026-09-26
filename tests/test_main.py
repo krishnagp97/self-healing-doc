@@ -47,3 +47,30 @@ def test_run_applies_ai_suggested_update(monkeypatch):
         "Fetches a user by ID and optionally includes their email."
         in content
     )
+
+
+def test_run_handles_ai_review_failure(monkeypatch, capsys):
+    base = Path(__file__).parent / "fixtures"
+
+    old_path = base / "old"
+    new_path = base / "new"
+
+    def fake_review(review_item):
+        return {
+            "success": False,
+            "issue": "AI review is temporarily unavailable.",
+            "suggested_update": "",
+        }
+
+    monkeypatch.setattr(
+        "src.main.review_documentation",
+        fake_review,
+    )
+
+    run(old_path, new_path)
+
+    output = capsys.readouterr().out
+
+    assert "✗ AI review failed:" in output
+    assert "AI review is temporarily unavailable." in output
+    assert "No documentation update suggested." in output
