@@ -20,5 +20,5 @@ jobs:
       - name: Run Self-Healing Docs
         uses: ./
         with:
-          gemini-api-key: invalid-test-key
+          gemini-api-key: ${{ secrets.GEMINI_API_KEY }}
           github-token: ${{ github.token }}
