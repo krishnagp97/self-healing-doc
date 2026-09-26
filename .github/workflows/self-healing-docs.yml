@@ -97,9 +97,13 @@ jobs:
       - name: Create documentation branch
         working-directory: snapshots/new
         run: |
-          BRANCH="docs/self-healing-${{ github.event.pull_request.number }}"
-          git checkout -b "$BRANCH"
-          echo "DOCS_BRANCH=$BRANCH" >> "$GITHUB_ENV"
+          if jq -e 'any(.[]; .updated == true)' "${{ runner.temp }}/review_results.json" > /dev/null; then
+            BRANCH="docs/self-healing-${{ github.event.pull_request.number }}"
+            git checkout -b "$BRANCH"
+            echo "DOCS_BRANCH=$BRANCH" >> "$GITHUB_ENV"
+          else
+            echo "No documentation updates. Skipping branch creation."
+          fi
 
       - name: Commit documentation updates
         working-directory: snapshots/new
