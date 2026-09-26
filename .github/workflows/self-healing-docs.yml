@@ -59,8 +59,10 @@ jobs:
         id: review-results
         run: |
           RESULTS=$(cat "${{ runner.temp }}/review_results.json")
+
           echo "Review results:"
           echo "$RESULTS"
+
           {
             echo "results<<EOF"
             echo "$RESULTS"
@@ -68,19 +70,24 @@ jobs:
           } >> "$GITHUB_OUTPUT"
 
       - name: Comment on PR when AI review fails
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: |
+          echo "DEBUG: review results"
+          cat "${{ runner.temp }}/review_results.json"
+
           if jq -e 'any(.[]; .success == false)' "${{ runner.temp }}/review_results.json" > /dev/null; then
-            gh pr comment "${{ github.event.pull_request.number }}" \
-              --body "⚠️ **Self-Healing Docs:** AI documentation review was temporarily unavailable.
+            gh pr comment "${{ github.event.pull_request.number }}" --body "$(cat <<'EOF'
+          ⚠️ **Self-Healing Docs:** AI documentation review was temporarily unavailable.
 
-            Gemini could not complete the review because the API quota was exhausted. No documentation changes were made.
+          Gemini could not complete the review because the API quota was exhausted. No documentation changes were made.
 
-            The affected documentation will need to be reviewed again when the AI service is available."
-                      else
-                        echo "AI review completed successfully."
-                      fi
-                    env:
-                      GH_TOKEN: ${{ github.token }}
+          The affected documentation will need to be reviewed again when the AI service is available.
+          EOF
+          )"
+          else
+            echo "AI review completed successfully."
+          fi
 
       - name: Configure Git
         run: |
@@ -115,6 +122,8 @@ jobs:
 
       - name: Create documentation PR
         working-directory: snapshots/new
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: |
           if jq -e 'any(.[]; .updated == true)' "${{ runner.temp }}/review_results.json" > /dev/null; then
             gh pr create \
@@ -125,5 +134,3 @@ jobs:
           else
             echo "No documentation updates. No PR created."
           fi
-        env:
-          GH_TOKEN: ${{ github.token }}
