@@ -70,36 +70,33 @@ with open(results_file, encoding="utf-8") as f:
 
 failed = any(not item["success"] for item in results)
 
-if not failed:
-    print("AI review completed successfully.")
-    sys.exit(0)
+if failed:
+    print("AI review failed.")
 
-print("AI review failed.")
+    repo = os.environ["GITHUB_REPOSITORY"]
+    pr_number = os.environ["PR_NUMBER"]
+    token = os.environ["GITHUB_TOKEN"]
+    api_url = os.environ["GITHUB_API_URL"]
 
-repo = os.environ["GITHUB_REPOSITORY"]
-pr_number = os.environ["PR_NUMBER"]
-token = os.environ["GITHUB_TOKEN"]
-api_url = os.environ["GITHUB_API_URL"]
+    url = f"{api_url}/repos/{repo}/issues/{pr_number}/comments"
 
-url = f"{api_url}/repos/{repo}/issues/{pr_number}/comments"
+    documentation = []
+    changed_symbols = []
 
-documentation = []
-changed_symbols = []
-
-for item in results:
-    if not item["success"]:
-        documentation.append(
-            f"- `{item['file']}` → `{item['heading']}`"
-        )
-
-        for change in item["changed_symbols"]:
-            symbol = change["symbol"]
-
-            changed_symbols.append(
-                f"- `{symbol['file']}::{symbol['name']}`"
+    for item in results:
+        if not item["success"]:
+            documentation.append(
+                f"- `{item['file']}` → `{item['heading']}`"
             )
 
-body = """⚠️ **Self-Healing Docs:** AI documentation review was temporarily unavailable.
+            for change in item["changed_symbols"]:
+                symbol = change["symbol"]
+
+                changed_symbols.append(
+                    f"- `{symbol['file']}::{symbol['name']}`"
+                )
+
+    body = """⚠️ **Self-Healing Docs:** AI documentation review was temporarily unavailable.
 
 The AI service could not complete the documentation review, so no documentation changes were made.
 
@@ -115,6 +112,136 @@ Please review the documentation above manually. The documentation may be outdate
 
 The Self-Healing Docs Action will not modify documentation when the AI review is unavailable."""
 
+    response = requests.post(
+        url,
+        headers={
+            "Authorization": f"Bearer {token}",
+            "Accept": "application/vnd.github+json",
+            "X-GitHub-Api-Version": "2022-11-28",
+        },
+        json={"body": body},
+        timeout=30,
+    )
+
+    response.raise_for_status()
+
+    print("✓ Comment added to original PR.")
+
+    sys.exit(0)
+
+print("AI review completed successfully.")
+PY
+
+UPDATED=$(python - "$REVIEW_RESULTS_FILE" <<'PY'
+import json
+import sys
+
+with open(sys.argv[1], encoding="utf-8") as f:
+    results = json.load(f)
+
+print("true" if any(item["updated"] for item in results) else "false")
+PY
+)
+
+[ "$UPDATED" != "true" ] || {
+    echo "No documentation updates. Skipping branch creation."
+    exit 0
+}
+
+export DOCS_BRANCH="docs/self-healing-${PR_NUMBER}"
+
+echo ""
+echo "Creating documentation branch: $DOCS_BRANCH"
+
+cd "$NEW_DIR"
+
+git checkout -b "$DOCS_BRANCH"
+
+echo "✓ Documentation branch created"
+
+echo ""
+echo "Committing documentation updates..."
+
+git add .
+
+git commit -m "docs: update documentation automatically"
+
+echo "✓ Documentation changes committed"
+
+echo ""
+echo "Pushing documentation branch..."
+
+git push -u origin "$DOCS_BRANCH"
+
+echo "✓ Documentation branch pushed"
+
+echo ""
+echo "Creating documentation PR..."
+
+UPDATED_SECTIONS=$(python - "$REVIEW_RESULTS_FILE" <<'PY'
+import json
+import sys
+
+with open(sys.argv[1], encoding="utf-8") as f:
+    results = json.load(f)
+
+for item in results:
+    if item["updated"]:
+        print(f"- `{item['file']}` → `{item['heading']}`")
+PY
+)
+
+CHANGED_SYMBOLS=$(python - "$REVIEW_RESULTS_FILE" <<'PY'
+import json
+import sys
+
+with open(sys.argv[1], encoding="utf-8") as f:
+    results = json.load(f)
+
+seen = set()
+
+for item in results:
+    if item["updated"]:
+        for change in item["changed_symbols"]:
+            symbol = change["symbol"]
+            value = f"- `{symbol['file']}::{symbol['name']}`"
+
+            if value not in seen:
+                print(value)
+                seen.add(value)
+PY
+)
+
+python - "$UPDATED_SECTIONS" "$CHANGED_SYMBOLS" <<'PY'
+import json
+import os
+import requests
+import sys
+
+updated_sections = sys.argv[1]
+changed_symbols = sys.argv[2]
+
+repo = os.environ["GITHUB_REPOSITORY"]
+token = os.environ["GITHUB_TOKEN"]
+api_url = os.environ["GITHUB_API_URL"]
+
+url = f"{api_url}/repos/{repo}/pulls"
+
+body = f"""## Self-Healing Docs
+
+Updated documentation based on changes from PR #{os.environ["PR_NUMBER"]}.
+
+### Updated sections
+
+{updated_sections}
+
+### Changed symbols
+
+{changed_symbols}
+
+This PR was generated automatically by Self-Healing Docs.
+"""
+
 response = requests.post(
     url,
     headers={
@@ -122,13 +249,20 @@ response = requests.post(
         "Accept": "application/vnd.github+json",
         "X-GitHub-Api-Version": "2022-11-28",
     },
-    json={"body": body},
+    json={
+        "title": f"docs: update documentation for #{os.environ['PR_NUMBER']}",
+        "body": body,
+        "head": os.environ["DOCS_BRANCH"],
+        "base": os.environ["BASE_REF"],
+    },
     timeout=30,
 )
 
 response.raise_for_status()
 
-print("✓ Comment added to original PR.")
+pr = response.json()
+
+print(f"✓ Documentation PR created: {pr['html_url']}")
 PY
 
 echo ""
