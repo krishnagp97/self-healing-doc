@@ -10,6 +10,7 @@ def update_section(
     test_mode: bool = False,
     dry_run: bool = False,
     validate_content: bool = False,
+    backup_existing: bool = False,
 ) -> bool:
     path = Path(file_path)
 
