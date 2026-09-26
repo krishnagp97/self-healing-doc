@@ -1,6 +1,6 @@
 from pathlib import Path
 
-
+# Internal helper for documentation updates
 def update_section(
     file_path: str,
     section_title: str,
