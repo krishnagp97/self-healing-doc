@@ -139,8 +139,12 @@ def run(old_path, new_path):
 
         updated = False
 
-        print("   Issue:")
-        print(f"      {ai_review['issue']}")
+        if ai_review["success"]:
+            print("   Issue:")
+            print(f"      {ai_review['issue']}")
+        else:
+            print("   ✗ AI review failed:")
+            print(f"      {ai_review['issue']}")
 
         suggested_update = ai_review["suggested_update"]
 
