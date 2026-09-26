@@ -18,14 +18,20 @@ def detect_changes(old_chunks, new_chunks):
         old_chunk = old_by_id[symbol_id]
         new_chunk = new_by_id[symbol_id]
 
+        fields = fields_to_compare
+
+        if old_chunk.get("type") != "class":
+            fields = fields + ("body",)
+
         if any(
             old_chunk.get(field) != new_chunk.get(field)
-            for field in fields_to_compare
+            for field in fields
         ):
             modified.append({
                 "old": old_chunk,
                 "new": new_chunk,
             })
+
 
     return {
         "added": added,

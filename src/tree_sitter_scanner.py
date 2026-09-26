@@ -276,6 +276,7 @@ def extract_symbols(file_path):
                     "line": node.start_point[0] + 1,
                     "end_line": node.end_point[0] + 1,
                     "signature": extract_signature(source, node),
+                    "body": source[node.start_byte:node.end_byte].decode("utf-8"),
                     "docstring": extract_docstring(source, node, extension),
                 })
 
