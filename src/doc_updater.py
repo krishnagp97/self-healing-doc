@@ -25,7 +25,7 @@ def update_section(
     start = content.find(start_marker)
 
     if start == -1:
-        return False
+        raise ValueError(f"Section not found: {section_title}")
 
     next_section = len(content)
 
