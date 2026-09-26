@@ -18,7 +18,7 @@ def update_section(
     if not path.exists():
         raise FileNotFoundError(f"File not found: {file_path}")
 
-    content = path.read_text(encoding="utf-8")
+    content = Path(file_path).read_text(encoding="utf-8").replace("\r\n", "\n")
 
     heading_marker = "#" * heading_level
     start_marker = f"{heading_marker} {section_title}"
