@@ -2,7 +2,7 @@ from pathlib import Path
 
 # Helper used internally for documentation updates
 def update_section(
- #Update a Markdown section and optionally perform a dry run.
+ #Update a Markdown documentation section safely.
     file_path: str,
     section_title: str,
     new_content: str,
