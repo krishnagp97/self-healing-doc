@@ -36,6 +36,8 @@ rm -rf "$OLD_DIR" "$NEW_DIR"
 echo ""
 echo "Creating repository snapshots..."
 
+git fetch --no-tags origin "$BASE_SHA" "$MERGE_SHA"
+
 git worktree add --detach "$OLD_DIR" "$BASE_SHA"
 git worktree add --detach "$NEW_DIR" "$MERGE_SHA"
 
