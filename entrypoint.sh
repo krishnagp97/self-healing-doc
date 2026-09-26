@@ -46,7 +46,15 @@ echo "✓ Snapshots created"
 echo ""
 echo "Running documentation analysis..."
 
+export REVIEW_RESULTS_FILE="/tmp/self-healing-review-results.json"
+
 python -m src.main "$OLD_DIR" "$NEW_DIR"
 
 echo ""
+
+echo "Review results:"
+cat "$REVIEW_RESULTS_FILE"
+
+echo ""
+
 echo "Self-Healing Docs analysis completed."
