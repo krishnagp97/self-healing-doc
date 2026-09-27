@@ -2,6 +2,8 @@
 
 set -e
 
+export PYTHONPATH="/app:$PYTHONPATH"
+
 [ -n "$GITHUB_EVENT_PATH" ] || {
     echo "Error: This action must be run inside GitHub Actions."
     exit 1
