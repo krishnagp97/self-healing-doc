@@ -4,7 +4,7 @@ This project automatically detects documentation that may become outdated after 
 
 ## update_section
 
-Updates the content of a Markdown documentation section identified by its heading. It returns true when the section is updated successfully.
+Updates the content of a Markdown documentation section identified by its heading, with an option to create the section if it is missing (`create_if_missing`). It returns true when the section is updated successfully.
 
 ## Action Test
 
