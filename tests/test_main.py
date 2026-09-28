@@ -78,6 +78,10 @@ def test_run_applies_ai_suggested_update(monkeypatch):
         "Fetches a user by ID and optionally includes their email."
         in content
     )
+    assert (
+        "Fetches a user by ID."
+        not in content
+    )
 
 
 def test_run_handles_ai_review_failure(monkeypatch, capsys):
