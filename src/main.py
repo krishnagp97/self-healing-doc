@@ -10,6 +10,7 @@ from src.change_detector import detect_changes
 from src.impact_analyzer import find_affected_docs
 from src.staleness_verifier import prepare_review_items
 from src.doc_updater import update_section
+from src.coverage_analyzer import find_undocumented_symbols
 import json
 import os
 
@@ -88,6 +89,21 @@ def run(old_path, new_path):
     print(f"  Added   : {len(changes['added'])}")
     print(f"  Removed : {len(changes['removed'])}")
     print(f"  Modified: {len(changes['modified'])}")
+
+    print("\nAnalyzing documentation coverage...")
+
+    undocumented_symbols = find_undocumented_symbols(
+        changes,
+        new_sections,
+    )
+
+    print(
+        f"  Potentially undocumented symbols: "
+        f"{len(undocumented_symbols)}"
+    )
+
+    for symbol in undocumented_symbols:
+        print(f"    - {symbol['id']}")
 
     print("\nAnalyzing documentation impact...")
 
