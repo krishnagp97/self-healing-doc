@@ -57,7 +57,7 @@ jobs:
           github-token: ${{ github.token }}
 ```
 
-> **Important:** The `actions/checkout@v4` step is required because Self-Healing Docs uses Git to fetch commits and create worktrees for comparing the repository before and after the merged pull request.
+> Important: The actions/checkout@v4 step is required because Self-Healing Docs needs access to the repository's Git history to compare the code before and after the merged pull request.
 
 ## 2. Add the Gemini API key
 
