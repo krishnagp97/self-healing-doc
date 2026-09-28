@@ -593,3 +593,53 @@ def test_semantic_linker_quota_failure_is_explicit(monkeypatch):
     assert str(exc_info.value) == (
         "Gemini quota or rate limit has been exceeded."
     )
+
+
+def test_semantic_linker_success(monkeypatch):
+    sections = [{
+        "id": "docs::Users",
+        "file": "docs/users.md",
+        "heading": "Users",
+        "level": 1,
+        "content": "This section explains how users are retrieved.",
+    }]
+
+    chunks = [{
+        "id": "code-1",
+        "name": "UserService.get_user",
+        "file": "src/user_service.py",
+    }]
+
+    def successful_gemini(prompt):
+        return {
+            "matches": [
+                {
+                    "code_id": "code-1",
+                    "confidence": 0.95,
+                    "reason": "The documentation describes retrieving users."
+                }
+            ]
+        }
+
+    monkeypatch.setattr(
+        "src.llm.linker._call_gemini",
+        successful_gemini,
+    )
+
+    result = semantic_link_sections(
+        sections,
+        chunks,
+    )
+
+    assert result["status"] == "success"
+    assert result["unresolved"] == []
+
+    assert len(result["links"]) == 1
+
+    link = result["links"][0]
+
+    assert link["doc_id"] == "docs::Users"
+    assert link["code_id"] == "code-1"
+    assert link["symbol"] == "UserService.get_user"
+    assert link["confidence"] == 0.95
+    assert link["source"] == "semantic"
