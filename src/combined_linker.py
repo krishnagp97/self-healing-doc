@@ -33,15 +33,7 @@ def link_all_sections(sections, chunks):
         if section["id"] in semantic_section_ids
     ]
 
-    print("\nDEBUG LINKING")
-    print("Deterministic links:", deterministic_links)
-    print("Unmatched:", unmatched)
-    print("Ambiguous:", ambiguous)
-    print(
-        "Semantic sections:",
-        [section["id"] for section in semantic_sections],
-    )
-    print("========================")
+
 
     semantic_links = []
     semantic_unresolved = []
@@ -52,13 +44,7 @@ def link_all_sections(sections, chunks):
             chunks,
         )
 
-        print("\nDEBUG SEMANTIC LINKING")
-        print("Semantic links:", semantic_result["links"])
-        print(
-            "Semantic unresolved:",
-            semantic_result["unresolved"],
-        )
-        print("========================")
+    
 
         semantic_links = semantic_result["links"]
         semantic_unresolved = semantic_result["unresolved"]
