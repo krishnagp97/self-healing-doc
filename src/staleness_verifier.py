@@ -35,22 +35,30 @@ def prepare_review_items(sections, changes, affected_doc_ids, old_links, new_lin
         if code_id in changed_symbols:
             symbols_by_doc.setdefault(doc_id, set()).add(code_id)
 
+    print("\nDEBUG ====================")
+    print("affected_doc_ids:", affected_doc_ids)
+    print("section IDs:", list(section_by_id.keys()))
+    print("changed symbol IDs:", list(changed_symbols.keys()))
+    print("symbols_by_doc:", symbols_by_doc)
+    print("==========================")
     items = []
 
     for doc_id in affected_doc_ids:
+        print(f"\nDEBUG processing doc_id: {doc_id}")
         section = section_by_id.get(doc_id)
 
         if section is None:
+            print("DEBUG -> section NOT FOUND")
             continue
-
+        print("DEBUG -> section FOUND")
         relevant_symbols = [
             changed_symbols[code_id]
             for code_id in sorted(symbols_by_doc.get(doc_id, set()))
         ]
-
+        print("DEBUG -> relevant_symbols:", relevant_symbols)
         if not relevant_symbols:
             continue
-
+        print("DEBUG -> ADDING REVIEW ITEM")
         items.append({
             "doc_id": doc_id,
             "file": section["file"],
@@ -61,5 +69,6 @@ def prepare_review_items(sections, changes, affected_doc_ids, old_links, new_lin
             "changed_symbols": relevant_symbols,
             
         })
+        print("\nDEBUG final items:", items)
 
     return items
