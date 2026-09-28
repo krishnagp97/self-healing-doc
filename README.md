@@ -1,121 +1,505 @@
 # Self-Healing Docs
 
-Automatically detect stale documentation after merged pull requests, review the changes with Gemini, and create a documentation pull request with the required updates.
+Self-Healing Docs is a GitHub Action that automatically detects when code changes may make documentation stale.
 
-## What it does
+After a pull request is merged, it compares the repository before and after the change, identifies affected code symbols, connects those symbols to documentation, and uses Gemini to determine whether the affected documentation needs to be updated.
 
-Self-Healing Docs runs after a pull request is merged and checks whether the code changes have made existing documentation outdated.
+When an update is required, the action modifies only the affected documentation sections and creates a separate pull request for review.
 
-It:
+## The Problem
 
-1. Scans the old and new versions of the repository.
-2. Detects added, removed, and modified code symbols.
-3. Links code symbols to relevant documentation sections.
-4. Identifies documentation affected by the code changes.
-5. Uses Gemini to review whether the documentation needs an update.
-6. Updates the affected documentation when necessary.
-7. Creates a separate pull request containing the documentation changes.
+Documentation often becomes outdated when code changes.
 
-If the AI review fails, the action does not modify the documentation. Instead, it comments on the original pull request so the failure is visible to the developer.
+For example, a function may originally be:
 
-## How it works
+```python
+def get_user(user_id):
+    ...
+```
+
+and the documentation may say:
+
+```text
+Fetches a user by ID.
+```
+
+Later, the implementation changes:
+
+```python
+def get_user(user_id, include_email=False):
+    ...
+```
+
+The code is updated, but the documentation may still describe the old behavior.
+
+The difficult part is not simply finding changed files. A change in one function may affect a specific section of a README or documentation file somewhere else in the repository.
+
+Self-Healing Docs tries to solve this by building a relationship between **code symbols and documentation sections** before determining which documentation needs review.
+
+---
+
+## How It Works
+
+The system processes a merged pull request in several stages:
 
 ```text
 Merged Pull Request
         |
         v
-Scan Repository Changes
+Repository Snapshots
         |
         v
-Detect Code Changes
+Code Scanning
         |
         v
-Find Affected Documentation
+Change Detection
         |
         v
-Gemini AI Review
+Documentation Parsing
         |
-        +---- Review succeeds
-        |          |
-        |          +---- Documentation is up to date
-        |          |             |
-        |          |             v
-        |          |         No changes
-        |          |
-        |          +---- Documentation is stale
-        |                        |
-        |                        v
-        |                 Update Documentation
-        |                        |
-        |                        v
-        |                Create Documentation PR
+        v
+Code ↔ Documentation Linking
         |
-        +---- Review fails
-                   |
-                   v
-          Comment on Original PR
-                   |
-                   v
-              No Changes
+        v
+Impact Analysis
+        |
+        v
+Gemini Documentation Review
+        |
+        +----------------------+
+        |                      |
+   Documentation           Documentation
+    is current               is stale
+        |                      |
+        v                      v
+   No changes           Update affected
+                              section
+                                |
+                                v
+                     Create Documentation PR
 ```
 
-## Features
+The important part is that Gemini does **not** blindly review the entire repository.
 
-- Supports multiple programming languages through Tree-sitter.
-- Updates only affected documentation sections.
-- Creates a separate pull request for documentation updates.
-- Comments on the original pull request when AI review fails.
-- Retries failed AI review requests before reporting an error.
-- Works as a reusable GitHub Action across repositories.
-- Compares the repository state between the pull request's base and merge commits.
+The system first narrows the problem down to documentation that may actually be affected by the code changes.
 
+---
 
-## Supported Languages
+# 1. Repository Scanning
 
-Self-Healing Docs uses Tree-sitter to analyze source code.
+The first step is extracting structured information from the repository.
 
-Currently supported:
+Source files are analyzed using **Tree-sitter**.
 
-- C++
-- Go
-- Java
-- JavaScript
-- Python
-- Rust
-- TypeScript
-- TSX
- 
-The documentation analysis is based on code symbols such as functions, classes, and their signatures.
+Instead of treating a source file as plain text, the scanner extracts code symbols such as:
 
-More languages can be added by extending the Tree-sitter scanner.
+```text
+Class
+ ├── Method
+ ├── Method
+ └── Method
 
-## Requirements
-
-- GitHub repository with GitHub Actions enabled.
-- GitHub Actions workflow with `contents: write` and `pull-requests: write` permissions.
-- Gemini API key.
-- Repository code written in a supported language.
-- `actions/checkout@v4` in the workflow.
-
-
-## Usage
-
-Self-Healing Docs is distributed as a reusable GitHub Action.
-
-Add the action to a GitHub Actions workflow:
-
-```yaml
-- name: Run Self-Healing Docs
-  uses: krishnagp97/self-healing-doc@v1
-  with:
-    gemini-api-key: ${{ secrets.GEMINI_API_KEY }}
-    github-token: ${{ github.token }}
+Function
+Function
 ```
 
-See [QUICKSTART.md](QUICKSTART.md) for setup instructions.
+For example:
 
+```python
+class UserService:
+    def get_user(self, user_id, include_email=False):
+        ...
+```
 
-## Project Structure
+can be represented as a code symbol such as:
+
+```text
+UserService.get_user
+```
+
+along with information about its file, name, and signature.
+
+This allows the rest of the system to reason about code at the symbol level instead of comparing entire files.
+
+---
+
+# 2. Comparing Old and New Code
+
+The action works with two repository states:
+
+```text
+Base Commit
+     |
+     |  code changes
+     v
+Merge Commit
+```
+
+The scanner analyzes both states and compares their extracted symbols.
+
+The change detector identifies:
+
+* Added symbols
+* Removed symbols
+* Modified symbols
+
+For example:
+
+```text
+Modified:
+src/user_service.py::UserService.get_user
+```
+
+A change to one method can therefore be traced independently from unrelated changes elsewhere in the repository.
+
+---
+
+# 3. Documentation Parsing
+
+Markdown documentation is parsed into individual sections.
+
+For example:
+
+```markdown
+# Users
+
+Fetches a user by ID.
+
+## Authentication
+
+Users must be authenticated before accessing this endpoint.
+
+## API Usage
+
+Use the user endpoint to retrieve account information.
+```
+
+is treated as multiple documentation sections rather than one large file.
+
+This allows the system to update:
+
+```text
+Users
+```
+
+without rewriting:
+
+```text
+Authentication
+API Usage
+```
+
+when those sections are unrelated to the code change.
+
+This approach also allows files such as `README.md` and documentation files to participate in the same analysis.
+
+---
+
+# 4. Linking Code to Documentation
+
+The system needs to answer:
+
+> Which code symbols does this documentation section describe?
+
+It first attempts **deterministic linking**.
+
+Explicit references, symbol names, paths, and other available relationships are used to find likely matches.
+
+Conceptually:
+
+```text
+Documentation Section
+        |
+        v
+Deterministic Linker
+        |
+   +----+----+
+   |         |
+Confident   Unresolved /
+  Match     Ambiguous
+              |
+              v
+       Candidate Generation
+              |
+              v
+       Candidate Ranking
+              |
+              v
+      Gemini Semantic Linker
+```
+
+This design is important because Gemini is not required for every documentation section.
+
+Deterministic matching handles straightforward cases, while Gemini is reserved for cases where the relationship requires semantic understanding.
+
+---
+
+# 5. Semantic Linking
+
+Some documentation does not explicitly mention the exact function or class name.
+
+For example, documentation might say:
+
+```text
+This section explains how users are retrieved from the system.
+```
+
+while the implementation contains:
+
+```text
+UserService.get_user
+```
+
+A simple string match may not be enough to connect the two.
+
+For unresolved or ambiguous sections, the system generates a limited set of candidate code symbols and sends those candidates to Gemini.
+
+Gemini returns a possible semantic match with a confidence value.
+
+Only sufficiently confident matches are accepted.
+
+Low-confidence matches remain unresolved rather than creating a potentially incorrect relationship.
+
+This keeps the AI component constrained instead of allowing it to arbitrarily associate documentation with source code.
+
+---
+
+# 6. Impact Analysis
+
+Once code symbols have been linked to documentation sections, the system can determine which documentation is affected by a code change.
+
+For example:
+
+```text
+Changed:
+UserService.get_user
+        |
+        v
+Linked documentation:
+README.md → Users
+        |
+        v
+Review required
+```
+
+While unrelated documentation is ignored:
+
+```text
+README.md → Installation
+README.md → Authentication
+README.md → Users  ← affected
+docs/api.md → Payments
+```
+
+Only the relevant section proceeds to the AI review stage.
+
+---
+
+# 7. Gemini Documentation Review
+
+After the affected documentation has been identified, Gemini reviews the relationship between the changed code and the existing documentation.
+
+The reviewer determines whether:
+
+```text
+Documentation
+      |
+      +---- Still accurate
+      |        |
+      |        v
+      |     No update
+      |
+      +---- Outdated
+               |
+               v
+        Suggested update
+```
+
+The AI is therefore used for **reasoning about documentation correctness**, not for deciding which files changed in the first place.
+
+---
+
+# 8. Targeted Documentation Updates
+
+When an update is required, the system updates the affected Markdown section rather than replacing the entire file.
+
+For example:
+
+```markdown
+## Users
+
+Fetches a user by ID.
+```
+
+can become:
+
+```markdown
+## Users
+
+Fetches a user by ID and optionally includes their email.
+```
+
+The surrounding documentation remains unchanged.
+
+Nested Markdown headings are also handled so that updating one section does not accidentally consume unrelated subsections.
+
+---
+
+# 9. Documentation Pull Request
+
+The action does not directly modify the main branch.
+
+Instead:
+
+```text
+Code PR merged
+      |
+      v
+Documentation analysis
+      |
+      v
+Documentation changes
+      |
+      v
+New documentation branch
+      |
+      v
+Documentation Pull Request
+```
+
+The resulting pull request contains the generated documentation changes separately from the original code change.
+
+This keeps the documentation update reviewable and gives developers the opportunity to inspect the generated changes before merging them.
+
+---
+
+# 10. Failure Handling
+
+AI services can fail because of:
+
+* Rate limits
+* Quota exhaustion
+* Temporary service failures
+* Invalid model responses
+* Other API errors
+
+Self-Healing Docs is designed to fail safely.
+
+If required AI analysis cannot be completed:
+
+```text
+AI analysis fails
+       |
+       v
+No documentation update
+       |
+       v
+Comment on original PR
+```
+
+The action does not make documentation changes based on incomplete AI analysis.
+
+Transient failures and invalid responses are retried where appropriate. Quota or rate-limit failures are surfaced explicitly rather than repeatedly attempting an unavailable service.
+
+---
+
+# Architecture
+
+The main processing pipeline can be viewed as:
+
+```text
+                    Repository
+                        |
+             +----------+----------+
+             |                     |
+             v                     v
+        Source Scanner       Documentation Parser
+             |                     |
+             v                     v
+       Code Symbols         Documentation Sections
+             |                     |
+             +----------+----------+
+                        |
+                        v
+                Documentation Linker
+                        |
+             +----------+----------+
+             |                     |
+             v                     v
+       Deterministic         Semantic Linking
+          Linking                 |
+             |                    |
+             +----------+---------+
+                        |
+                        v
+                 Change Detector
+                        |
+                        v
+                 Impact Analyzer
+                        |
+                        v
+                Documentation Review
+                        |
+                        v
+                 Documentation Updater
+                        |
+                        v
+                 GitHub PR Creation
+```
+
+The architecture separates deterministic analysis from AI-based reasoning.
+
+This means the AI is used where semantic understanding is useful, while repository scanning, change detection, section parsing, and documentation updates remain deterministic.
+
+---
+
+# Supported Languages
+
+Source code analysis currently supports:
+
+* C++
+* Go
+* Java
+* JavaScript
+* Python
+* Rust
+* TypeScript
+* TSX
+
+Tree-sitter provides the parsing layer, making it possible to add additional languages by extending the scanner.
+
+---
+
+# Testing
+
+The project includes automated tests for the main components:
+
+* Repository scanning
+* Tree-sitter language scanning
+* Change detection
+* Documentation parsing
+* Deterministic code-documentation linking
+* Candidate generation and ranking
+* Semantic linking
+* Impact analysis
+* Documentation updates
+* Nested documentation sections
+* Staleness verification
+* Gemini review
+* AI failure handling
+* End-to-end processing
+
+Run the test suite with:
+
+```bash
+python -m pytest -q
+```
+
+The GitHub Action has also been tested through real merged pull request workflows, including AI service failure handling and documentation workflow behavior.
+
+---
+
+# Project Structure
 
 ```text
 self-healing-doc/
@@ -134,8 +518,8 @@ self-healing-doc/
 │   ├── sample.md
 │   └── sample.py
 ├── src/
-│   ├── __init__.py
 │   ├── change_detector.py
+│   ├── combined_linker.py
 │   ├── doc_parser.py
 │   ├── doc_updater.py
 │   ├── graph.py
@@ -146,84 +530,26 @@ self-healing-doc/
 │   ├── staleness_verifier.py
 │   ├── tree_sitter_scanner.py
 │   └── llm/
-│       ├── __init__.py
+│       ├── candidates.py
+│       ├── linker.py
 │       └── reviewer.py
 ├── tests/
-│   ├── fixtures/
-│   │   ├── new/
-│   │   │   ├── sample.md
-│   │   │   └── sample.py
-│   │   └── old/
-│   │       ├── sample.md
-│   │       └── sample.py
-│   ├── manual_llm_test.py
-│   ├── test_change_detector.py
-│   ├── test_doc_parser.py
-│   ├── test_doc_updater.py
-│   ├── test_graph.py
-│   ├── test_impact_analyzer.py
-│   ├── test_linker.py
-│   ├── test_llm_reviewer.py
-│   ├── test_main.py
-│   ├── test_scanner.py
-│   ├── test_staleness_verifier.py
-│   └── test_tree_sitter_scanner.py
-├── .gitignore
 ├── action.yml
 ├── Dockerfile
-├── docs.md
 ├── entrypoint.sh
-├── README.md
 ├── QUICKSTART.md
+├── README.md
 └── requirements.txt
 ```
 
+---
 
-## How Documentation Is Linked
+# Version
 
-Self-Healing Docs connects source code symbols with documentation sections by analyzing references between them.
+Current release:
 
-It uses:
-
-- Code symbols such as functions, classes, and methods.
-- Documentation sections and the code symbols they reference.
-- Changes between the pull request's base and merge commits.
-
-When a code symbol changes, the action uses these relationships to identify the documentation sections that may have become stale.
-
-
-## AI Review Behavior
-
-Gemini reviews the affected documentation before any changes are made.
-
-- If the documentation is up to date, no changes are made.
-- If the documentation is stale, only the affected sections are updated.
-- If the AI review fails, the documentation is not modified.
-- Failed AI requests are retried before the action reports an error.
-- When the AI review cannot be completed, the action comments on the original pull request.
-
-## Testing
-
-The project includes automated tests covering the main components of the action.
-
-```bash
-python -m pytest -q
+```text
+v1
 ```
 
-The test suite covers:
-
-- Repository scanning
-- Change detection
-- Documentation parsing
-- Code-documentation linking
-- Impact analysis
-- Documentation updates
-- Staleness verification
-- Tree-sitter multi-language scanning
-- Gemini review
-- End-to-end action behavior
-
-The action has also been tested in a separate external GitHub repository with merged pull requests, including successful documentation updates, AI review failures, and non-Python source files.
-
-
-
+The action is distributed as a versioned GitHub Action and can be referenced using the `v1` release.
