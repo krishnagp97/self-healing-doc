@@ -51,7 +51,62 @@ echo "Running documentation analysis..."
 
 export REVIEW_RESULTS_FILE="/tmp/self-healing-review-results.json"
 
+set +e
+
 python -m src.main "$OLD_DIR" "$NEW_DIR"
+STATUS=$?
+
+set -e
+
+if [ "$STATUS" -eq 2 ]; then
+    echo ""
+    echo "⚠️ Self-Healing Docs: AI service unavailable."
+
+    python - <<'PY'
+import os
+import requests
+
+repo = os.environ["GITHUB_REPOSITORY"]
+pr_number = os.environ["PR_NUMBER"]
+token = os.environ["GITHUB_TOKEN"]
+api_url = os.environ["GITHUB_API_URL"]
+
+url = f"{api_url}/repos/{repo}/issues/{pr_number}/comments"
+
+body = """⚠️ **Self-Healing Docs:** AI documentation analysis was temporarily unavailable.
+
+The AI service could not complete semantic documentation analysis, so no documentation changes were made.
+
+Please review the documentation related to the merged code changes manually.
+
+The Self-Healing Docs Action will not modify documentation when the AI service is unavailable.
+"""
+
+response = requests.post(
+    url,
+    headers={
+        "Authorization": f"Bearer {token}",
+        "Accept": "application/vnd.github+json",
+        "X-GitHub-Api-Version": "2022-11-28",
+    },
+    json={"body": body},
+    timeout=30,
+)
+
+response.raise_for_status()
+
+print("✓ Comment added to original PR.")
+PY
+
+    exit 0
+fi
+
+if [ "$STATUS" -ne 0 ]; then
+    echo ""
+    echo "❌ Self-Healing Docs failed unexpectedly."
+    exit "$STATUS"
+fi
+
 
 echo ""
 echo "Review results:"

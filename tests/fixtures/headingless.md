@@ -1,0 +1,1 @@
+This document explains how `get_user` retrieves a user.

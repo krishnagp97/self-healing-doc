@@ -4,7 +4,8 @@ from pathlib import Path
 
 from src.tree_sitter_scanner import scan_repository
 from src.doc_parser import parse_markdown
-from src.linker import link_sections
+from src.combined_linker import link_all_sections
+from src.llm.linker import SemanticLinkerError
 from src.change_detector import detect_changes
 from src.impact_analyzer import find_affected_docs
 from src.staleness_verifier import prepare_review_items
@@ -64,8 +65,15 @@ def run(old_path, new_path):
 
     print("\nLinking documentation...")
 
-    old_link_result = link_sections(old_sections, old_chunks)
-    new_link_result = link_sections(new_sections, new_chunks)
+    old_link_result = link_all_sections(
+        old_sections,
+        old_chunks,
+    )
+
+    new_link_result = link_all_sections(
+        new_sections,
+        new_chunks,
+    )
 
     old_links = old_link_result["links"]
     new_links = new_link_result["links"]
@@ -194,13 +202,19 @@ def main():
 
     args = parser.parse_args()
 
-    results = run(args.old, args.new)
+    try:
+        results = run(args.old, args.new)
+    except SemanticLinkerError:
+        print("\nAI semantic linking is unavailable.")
+        raise SystemExit(2)
+
     output_file = os.getenv(
         "REVIEW_RESULTS_FILE",
         "review_results.json",
     )
+
     with open(output_file, "w", encoding="utf-8") as file:
-      json.dump(results, file, indent=2)
+        json.dump(results, file, indent=2)
 
 
 if __name__ == "__main__":
