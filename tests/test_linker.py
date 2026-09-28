@@ -560,3 +560,36 @@ def test_combined_linker_propagates_semantic_failure(monkeypatch):
 
     except SemanticLinkerError as exc:
         assert "temporarily unavailable" in str(exc)
+
+
+def test_semantic_linker_quota_failure_is_explicit(monkeypatch):
+    sections = [{
+        "id": "docs::Users",
+        "file": "docs/users.md",
+        "heading": "Users",
+        "level": 1,
+        "content": "This function retrieves a user using an ID.",
+    }]
+
+    chunks = [{
+        "id": "code-1",
+        "name": "UserService.get_user",
+        "file": "src/user_service.py",
+    }]
+
+    def failing_gemini(prompt):
+        raise SemanticLinkerError(
+            "Gemini quota or rate limit has been exceeded."
+        )
+
+    monkeypatch.setattr(
+        "src.llm.linker._call_gemini",
+        failing_gemini,
+    )
+
+    with pytest.raises(SemanticLinkerError) as exc_info:
+        semantic_link_sections(sections, chunks)
+
+    assert str(exc_info.value) == (
+        "Gemini quota or rate limit has been exceeded."
+    )

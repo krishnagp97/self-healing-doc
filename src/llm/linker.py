@@ -92,7 +92,21 @@ def _call_gemini(prompt):
 
             text = response.text.strip()
 
-            return json.loads(text)
+            try:
+                return json.loads(text)
+
+            except json.JSONDecodeError as exc:
+                print(
+                    f"Gemini returned invalid JSON "
+                    f"(attempt {attempt + 1}/{max_retries}): {exc}"
+                )
+
+                if attempt == max_retries - 1:
+                    raise SemanticLinkerError(
+                        "Gemini returned an invalid semantic linking response."
+                    ) from exc
+
+                time.sleep(2 ** attempt)
 
         except errors.ClientError as exc:
             print(
