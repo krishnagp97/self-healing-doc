@@ -11,6 +11,7 @@ from src.impact_analyzer import find_affected_docs
 from src.staleness_verifier import prepare_review_items
 from src.doc_updater import update_section
 from src.coverage_analyzer import find_undocumented_symbols
+
 import json
 import os
 
@@ -41,6 +42,22 @@ def scan_docs(root):
 
     return sections
 
+def save_results(reviews, undocumented_symbols):
+    """Save analysis results for the GitHub Action."""
+    output_file = os.getenv(
+        "REVIEW_RESULTS_FILE",
+        "review_results.json",
+    )
+
+    with open(output_file, "w", encoding="utf-8") as file:
+        json.dump(
+            {
+                "reviews": reviews,
+                "undocumented_symbols": undocumented_symbols,
+            },
+            file,
+            indent=2,
+        )
 
 def run(old_path, new_path):
     old_root = Path(old_path).resolve()
@@ -64,6 +81,34 @@ def run(old_path, new_path):
     print(f"  Old doc sections: {len(old_sections)}")
     print(f"  New doc sections: {len(new_sections)}")
 
+    print("\nDetecting changes...")
+
+    changes = detect_changes(old_chunks, new_chunks)
+
+    print(f"  Added   : {len(changes['added'])}")
+    print(f"  Removed : {len(changes['removed'])}")
+    print(f"  Modified: {len(changes['modified'])}")
+
+    print("\nAnalyzing documentation coverage...")
+
+    undocumented_symbols = find_undocumented_symbols(
+        changes,
+        new_sections,
+    )
+
+    print(
+        f"  Potentially undocumented symbols: "
+        f"{len(undocumented_symbols)}"
+    )
+
+    for symbol in undocumented_symbols:
+        print(f"    - {symbol['id']}")
+
+    save_results(
+        reviews=[],
+        undocumented_symbols=undocumented_symbols,
+    )
+
     print("\nLinking documentation...")
 
     old_link_result = link_all_sections(
@@ -81,10 +126,6 @@ def run(old_path, new_path):
 
     print(f"  Old links: {len(old_links)}")
     print(f"  New links: {len(new_links)}")
-
-    print("\nDetecting changes...")
-
-    changes = detect_changes(old_chunks, new_chunks)
 
     print(f"  Added   : {len(changes['added'])}")
     print(f"  Removed : {len(changes['removed'])}")
@@ -127,7 +168,10 @@ def run(old_path, new_path):
 
     if not review_items:
         print("\n✓ No documentation requires review.")
-        return []
+        return {
+            "reviews": [],
+            "undocumented_symbols": undocumented_symbols,
+        }
 
     print("\nDocumentation requiring review")
     print("-" * 50)
@@ -188,6 +232,7 @@ def run(old_path, new_path):
                 print("\n   ✗ Documentation section not found.")
         else:
             print("\n   No documentation update suggested.")
+
         results.append({
             "file": item["file"],
             "heading": item["heading"],
@@ -198,7 +243,10 @@ def run(old_path, new_path):
         })
     print("\n" + "=" * 50)
     print(f"Total review items: {len(review_items)}")
-    return results
+    return {
+        "reviews": results,
+        "undocumented_symbols": undocumented_symbols,
+    }
 
 
 def main():
@@ -224,14 +272,10 @@ def main():
         print("\nAI semantic linking is unavailable.")
         raise SystemExit(2)
 
-    output_file = os.getenv(
-        "REVIEW_RESULTS_FILE",
-        "review_results.json",
+    save_results(
+        reviews=results["reviews"],
+        undocumented_symbols=results["undocumented_symbols"],
     )
-
-    with open(output_file, "w", encoding="utf-8") as file:
-        json.dump(results, file, indent=2)
-
 
 if __name__ == "__main__":
     main()

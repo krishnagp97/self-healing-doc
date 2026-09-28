@@ -62,9 +62,21 @@ if [ "$STATUS" -eq 2 ]; then
     echo ""
     echo "⚠️ Self-Healing Docs: AI service unavailable."
 
-    python - <<'PY'
+    python - "$REVIEW_RESULTS_FILE" <<'PY'
+import json
 import os
 import requests
+import sys
+
+results_file = sys.argv[1]
+
+undocumented_symbols = []
+
+if os.path.exists(results_file):
+    with open(results_file, encoding="utf-8") as f:
+        data = json.load(f)
+
+    undocumented_symbols = data.get("undocumented_symbols", [])
 
 repo = os.environ["GITHUB_REPOSITORY"]
 pr_number = os.environ["PR_NUMBER"]
@@ -73,12 +85,23 @@ api_url = os.environ["GITHUB_API_URL"]
 
 url = f"{api_url}/repos/{repo}/issues/{pr_number}/comments"
 
+undocumented_section = ""
+
+if undocumented_symbols:
+    undocumented_section = """
+### Potentially undocumented symbols
+
+""" + "\n".join(
+        f"- `{symbol['id']}`"
+        for symbol in undocumented_symbols
+    ) + "\n"
+
 body = """⚠️ **Self-Healing Docs:** AI documentation analysis was temporarily unavailable.
 
 The AI service could not complete semantic documentation analysis, so no documentation changes were made.
 
 Please review the documentation related to the merged code changes manually.
-
+""" + undocumented_section + """
 The Self-Healing Docs Action will not modify documentation when the AI service is unavailable.
 """
 
@@ -123,7 +146,10 @@ import sys
 results_file = sys.argv[1]
 
 with open(results_file, encoding="utf-8") as f:
-    results = json.load(f)
+    data = json.load(f)
+
+results = data["reviews"]
+undocumented_symbols = data["undocumented_symbols"]
 
 failed = any(not item["success"] for item in results)
 
@@ -153,6 +179,17 @@ if failed:
                     f"- `{symbol['file']}::{symbol['name']}`"
                 )
 
+    undocumented_section = ""
+
+    if undocumented_symbols:
+        undocumented_section = """
+### Potentially undocumented symbols
+
+""" + "\n".join(
+            f"- `{symbol['id']}`"
+            for symbol in undocumented_symbols
+        ) + "\n"
+
     body = """⚠️ **Self-Healing Docs:** AI documentation review was temporarily unavailable.
 
 The AI service could not complete the documentation review, so no documentation changes were made.
@@ -163,7 +200,7 @@ The AI service could not complete the documentation review, so no documentation 
 
 ### Related code changes
 
-""" + "\n".join(changed_symbols) + """
+""" + "\n".join(changed_symbols) + "\n" + undocumented_section + """
 
 Please review the documentation above manually. The documentation may be outdated because the related code was modified.
 
@@ -189,14 +226,80 @@ The Self-Healing Docs Action will not modify documentation when the AI review is
 print("AI review completed successfully.")
 PY
 
+
+python - "$REVIEW_RESULTS_FILE" <<'PY'
+import json
+import os
+import requests
+import sys
+
+results_file = sys.argv[1]
+
+with open(results_file, encoding="utf-8") as f:
+    data = json.load(f)
+
+undocumented_symbols = data["undocumented_symbols"]
+
+if not undocumented_symbols:
+    sys.exit(0)
+
+print("")
+print("⚠️ Potentially undocumented symbols detected:")
+for symbol in undocumented_symbols:
+    print(f"   - {symbol['id']}")
+
+repo = os.environ["GITHUB_REPOSITORY"]
+pr_number = os.environ["PR_NUMBER"]
+token = os.environ["GITHUB_TOKEN"]
+api_url = os.environ["GITHUB_API_URL"]
+
+url = f"{api_url}/repos/{repo}/issues/{pr_number}/comments"
+
+body = """⚠️ **Self-Healing Docs:** Potentially undocumented symbols detected.
+
+The following newly added symbols do not appear to have corresponding documentation references:
+
+""" + "\n".join(
+    f"- `{symbol['id']}`"
+    for symbol in undocumented_symbols
+) + """
+
+Please review whether these symbols should be documented.
+
+No automatic documentation sections were created for these symbols.
+"""
+
+response = requests.post(
+    url,
+    headers={
+        "Authorization": f"Bearer {token}",
+        "Accept": "application/vnd.github+json",
+        "X-GitHub-Api-Version": "2022-11-28",
+    },
+    json={"body": body},
+    timeout=30,
+)
+
+response.raise_for_status()
+
+print("✓ Undocumented-symbol comment added to original PR.")
+PY
+
+
 UPDATED=$(python - "$REVIEW_RESULTS_FILE" <<'PY'
 import json
 import sys
 
 with open(sys.argv[1], encoding="utf-8") as f:
-    results = json.load(f)
+    data = json.load(f)
 
-print("true" if any(item["updated"] for item in results) else "false")
+results = data["reviews"]
+
+print(
+    "true"
+    if any(item["updated"] for item in results)
+    else "false"
+)
 PY
 )
 
@@ -243,7 +346,9 @@ import json
 import sys
 
 with open(sys.argv[1], encoding="utf-8") as f:
-    results = json.load(f)
+    data = json.load(f)
+
+results = data["reviews"]
 
 for item in results:
     if item["updated"]:
@@ -256,7 +361,9 @@ import json
 import sys
 
 with open(sys.argv[1], encoding="utf-8") as f:
-    results = json.load(f)
+    data = json.load(f)
+
+results = data["reviews"]
 
 seen = set()
 
@@ -273,7 +380,6 @@ PY
 )
 
 python - "$UPDATED_SECTIONS" "$CHANGED_SYMBOLS" <<'PY'
-import json
 import os
 import requests
 import sys
