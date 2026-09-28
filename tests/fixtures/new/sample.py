@@ -3,10 +3,11 @@ class UserService:
     """Manage user records."""
 
     def get_user(
-    self,
-    user_id: int,
-    include_email: bool = False
-) -> str:
+        self,
+        user_id: int,
+        include_email: bool = False,
+        include_phone: bool = False,
+    ) -> str:
       """Fetch a user by ID, optionally including email."""
       return f"User {user_id}"
 
