@@ -60,7 +60,7 @@ if [ "$STATUS" -eq 2 ]; then
     echo ""
     echo "⚠️ Self-Healing Docs: AI service unavailable."
 
-    python - "$REVIEW_RESULTS_FILE" <<'PY'
+python - "$REVIEW_RESULTS_FILE" <<'PY'
 
 import json
 import os
@@ -628,6 +628,34 @@ with open(results_file, encoding="utf-8") as f:
     data = json.load(f)
 
 
+def get_heading_level(line):
+    """Return Markdown heading level, or 0 if the line is not a heading."""
+
+    stripped = line.lstrip()
+
+    if not stripped.startswith("#"):
+        return 0
+
+    level = len(stripped) - len(stripped.lstrip("#"))
+
+    if level > 6:
+        return 0
+
+    if len(stripped) <= level:
+        return 0
+
+    if not stripped[level].isspace():
+        return 0
+
+    return level
+
+
+def normalize_heading(text):
+    """Normalize heading whitespace for reliable comparison."""
+
+    return " ".join(text.strip().split())
+
+
 for review in data["reviews"]:
 
     if not review["success"]:
@@ -637,6 +665,8 @@ for review in data["reviews"]:
     file_path = Path(review["file"])
 
     heading = review["heading"]
+
+    heading_level = review["heading_level",1]
 
     content = review["suggested_update"]
 
@@ -661,29 +691,33 @@ for review in data["reviews"]:
     lines = text.splitlines()
 
 
+    normalized_heading = normalize_heading(
+        heading
+    )
+
+
     try:
 
         index = next(
             i
             for i, line in enumerate(lines)
-            if line.strip() == heading.strip()
+            if (
+                get_heading_level(line) == heading_level
+                and normalize_heading(
+                    line.lstrip().lstrip("#").strip()
+                ) == normalized_heading
+            )
         )
 
 
     except StopIteration:
 
         print(
-            f"Warning: Heading not found: {heading}"
+            f"Warning: Heading not found: "
+            f"{'#' * heading_level} {heading}"
         )
 
         continue
-
-
-    level = len(
-        heading
-    ) - len(
-        heading.lstrip("#")
-    )
 
 
     end = len(lines)
@@ -691,12 +725,14 @@ for review in data["reviews"]:
 
     for i in range(index + 1, len(lines)):
 
-        line = lines[i]
+        current_level = get_heading_level(
+            lines[i]
+        )
 
 
         if (
-            line.startswith("#")
-            and len(line) - len(line.lstrip("#")) <= level
+            current_level
+            and current_level <= heading_level
         ):
 
             end = i
@@ -704,10 +740,17 @@ for review in data["reviews"]:
             break
 
 
+    markdown_heading = (
+        "#" * heading_level
+        + " "
+        + heading.strip()
+    )
+
+
     new_section = [
-        heading,
+        markdown_heading,
         "",
-        content,
+        content.strip(),
         "",
     ]
 
@@ -716,13 +759,11 @@ for review in data["reviews"]:
 
 
     full_path.write_text(
-        "\n".join(lines),
+        "\n".join(lines) + "\n",
         encoding="utf-8",
     )
 
-
 PY
-
 
 git add .
 
