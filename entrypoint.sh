@@ -61,6 +61,7 @@ if [ "$STATUS" -eq 2 ]; then
     echo "⚠️ Self-Healing Docs: AI service unavailable."
 
     python - "$REVIEW_RESULTS_FILE" <<'PY'
+
 import json
 import os
 import requests
@@ -69,33 +70,47 @@ import sys
 
 results_file = sys.argv[1]
 
+
 undocumented_symbols = []
+
 affected_doc_ids = []
 
+
 if os.path.exists(results_file):
+
     try:
+
         with open(results_file, encoding="utf-8") as f:
             data = json.load(f)
+
 
         undocumented_symbols = data.get(
             "undocumented_symbols",
             [],
         )
+
+
         affected_doc_ids = data.get(
             "affected_doc_ids",
             [],
         )
 
+
     except (json.JSONDecodeError, OSError) as error:
+
         print(
             f"Warning: Could not read review results: {error}"
         )
 
 
 repo = os.environ["GITHUB_REPOSITORY"]
+
 pr_number = os.environ["PR_NUMBER"]
+
 token = os.environ["GITHUB_TOKEN"]
+
 api_url = os.environ["GITHUB_API_URL"]
+
 
 url = (
     f"{api_url}/repos/{repo}"
@@ -108,6 +123,7 @@ url = (
 # ------------------------------------------------------------
 
 undocumented_section = ""
+
 
 if undocumented_symbols:
 
@@ -124,6 +140,7 @@ The following newly added symbols do not appear to have corresponding documentat
 Please review whether these symbols should be documented.
 """
 
+
 else:
 
     undocumented_section = """
@@ -131,7 +148,10 @@ else:
 
 No newly added undocumented symbols were detected by the deterministic documentation coverage check.
 """
+
+
 affected_docs_section = ""
+
 
 if affected_doc_ids:
 
@@ -148,6 +168,7 @@ The following documentation sections reference symbols affected by the merged co
 These sections could not be semantically reviewed because the AI service was unavailable.
 """
 
+
 else:
 
     affected_docs_section = """
@@ -155,6 +176,7 @@ else:
 
 No documentation sections were identified as potentially affected by the changed symbols.
 """
+
 
 # ------------------------------------------------------------
 # Build GitHub comment
@@ -186,6 +208,7 @@ headers = {
     "Accept": "application/vnd.github+json",
 }
 
+
 response = requests.post(
     url,
     headers=headers,
@@ -193,7 +216,9 @@ response = requests.post(
     timeout=30,
 )
 
+
 response.raise_for_status()
+
 
 print("✓ Comment added to original PR.")
 
@@ -249,7 +274,18 @@ with open(results_file, encoding="utf-8") as f:
 
 results = data["reviews"]
 
-undocumented_symbols = data["undocumented_symbols"]
+
+undocumented_symbols = data.get(
+    "undocumented_symbols",
+    [],
+)
+
+
+affected_doc_ids = data.get(
+    "affected_doc_ids",
+    [],
+)
+
 
 failed = any(
     not item["success"]
@@ -267,6 +303,10 @@ if not failed:
 print("AI review failed.")
 
 
+# ------------------------------------------------------------
+# Collect documentation requiring manual review
+# ------------------------------------------------------------
+
 documentation = []
 
 changed_symbols = []
@@ -280,14 +320,20 @@ for item in results:
             f"- `{item['file']}` → `{item['heading']}`"
         )
 
+
         for change in item["changed_symbols"]:
 
             symbol = change["symbol"]
+
 
             changed_symbols.append(
                 f"- `{symbol['file']}::{symbol['name']}`"
             )
 
+
+# ------------------------------------------------------------
+# Build undocumented symbols section
+# ------------------------------------------------------------
 
 undocumented_section = ""
 
@@ -308,6 +354,51 @@ Please review whether these symbols should be documented.
 """
 
 
+else:
+
+    undocumented_section = """
+### Documentation coverage
+
+No newly added undocumented symbols were detected by the deterministic documentation coverage check.
+"""
+
+
+# ------------------------------------------------------------
+# Build potentially affected documentation section
+# ------------------------------------------------------------
+
+affected_docs_section = ""
+
+
+if affected_doc_ids:
+
+    affected_docs_section = """
+### Documentation potentially affected by code changes
+
+The following documentation sections reference symbols affected by the merged code changes:
+
+""" + "\n".join(
+        f"- `{doc_id}`"
+        for doc_id in affected_doc_ids
+    ) + """
+
+These sections could not be fully reviewed because the AI service was unavailable.
+"""
+
+
+else:
+
+    affected_docs_section = """
+### Documentation impact
+
+No documentation sections were identified as potentially affected by the changed symbols.
+"""
+
+
+# ------------------------------------------------------------
+# Build GitHub comment
+# ------------------------------------------------------------
+
 body = """⚠️ **Self-Healing Docs:** AI documentation review was temporarily unavailable.
 
 The AI service could not complete the documentation review, so no documentation changes were made.
@@ -318,13 +409,17 @@ The AI service could not complete the documentation review, so no documentation 
 
 ### Related code changes
 
-""" + "\n".join(changed_symbols) + "\n" + undocumented_section + """
+""" + "\n".join(changed_symbols) + "\n" + undocumented_section + "\n" + affected_docs_section + """
 
 Please review the documentation above manually. The documentation may be outdated because the related code was modified.
 
 The Self-Healing Docs Action will not modify documentation when the AI review is unavailable.
 """
 
+
+# ------------------------------------------------------------
+# GitHub API configuration
+# ------------------------------------------------------------
 
 repo = os.environ["GITHUB_REPOSITORY"]
 
@@ -347,12 +442,17 @@ headers = {
 }
 
 
+# ------------------------------------------------------------
+# Post comment to original PR
+# ------------------------------------------------------------
+
 response = requests.post(
     url,
     headers=headers,
     json={"body": body},
     timeout=30,
 )
+
 
 response.raise_for_status()
 
@@ -446,6 +546,7 @@ response = requests.post(
     timeout=30,
 )
 
+
 response.raise_for_status()
 
 
@@ -508,6 +609,7 @@ git checkout -b "$BRANCH_NAME"
 
 
 git config user.name "github-actions[bot]"
+
 git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
 
 
@@ -531,13 +633,16 @@ for review in data["reviews"]:
     if not review["success"]:
         continue
 
+
     file_path = Path(review["file"])
 
     heading = review["heading"]
 
-    content = review["updated_content"]
+    content = review["suggested_update"]
+
 
     full_path = Path.cwd() / file_path
+
 
     if not full_path.exists():
 
@@ -564,6 +669,7 @@ for review in data["reviews"]:
             if line.strip() == heading.strip()
         )
 
+
     except StopIteration:
 
         print(
@@ -586,6 +692,7 @@ for review in data["reviews"]:
     for i in range(index + 1, len(lines)):
 
         line = lines[i]
+
 
         if (
             line.startswith("#")
@@ -658,6 +765,7 @@ token = os.environ["GITHUB_TOKEN"]
 
 api_url = os.environ["GITHUB_API_URL"]
 
+
 branch = os.environ.get(
     "BRANCH_NAME",
     "",
@@ -684,8 +792,11 @@ headers = {
 
 body = {
     "title": "docs: update documentation automatically",
+
     "head": branch,
+
     "base": os.environ["BASE_REF"],
+
     "body": """## Self-Healing Docs
 
 This pull request was automatically generated because documentation was detected as potentially outdated after a code change.
