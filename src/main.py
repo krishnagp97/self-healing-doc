@@ -262,6 +262,7 @@ def run(old_path, new_path):
         results.append({
             "file": item["file"],
             "heading": item["heading"],
+            "heading_level": item["heading_level"],
             "success": ai_review["success"],
             "suggested_update": suggested_update,
             "updated": updated,
