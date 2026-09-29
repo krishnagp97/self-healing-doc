@@ -149,6 +149,22 @@ else:
 No newly added undocumented symbols were detected by the deterministic documentation coverage check.
 """
 
+changed_symbols_section = ""
+
+if changed_symbols:
+    changed_symbols_section = """
+### Related code changes
+
+The following symbols were affected by the merged code changes:
+
+""" + "\n".join(changed_symbols) + """
+"""
+else:
+    changed_symbols_section = """
+### Related code changes
+
+No changed symbols were available for review.
+"""
 
 affected_docs_section = ""
 
@@ -191,7 +207,7 @@ The AI service could not complete semantic documentation analysis, so no documen
 - Newly added undocumented symbols: """ + str(len(undocumented_symbols)) + """
 - Documentation sections potentially affected: """ + str(len(affected_doc_ids)) + """
 
-""" + undocumented_section + "\n" + affected_docs_section + """
+""" + undocumented_section + changed_symbols_section + affected_docs_section + """
 
 Please review the documentation above manually.
 
