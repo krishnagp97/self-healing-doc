@@ -32,3 +32,40 @@ def find_undocumented_symbols(changes, sections):
             undocumented.append(symbol)
 
     return undocumented
+
+
+def find_potentially_affected_docs(changes, sections):
+    """Find documentation sections that mention changed symbols."""
+
+    changed_symbols = []
+
+    for symbol in changes["added"]:
+        changed_symbols.append(symbol)
+
+    for symbol in changes["removed"]:
+        changed_symbols.append(symbol)
+
+    for change in changes["modified"]:
+        changed_symbols.append(change["new"])
+
+    affected = []
+
+    for section in sections:
+        text = (
+            f"{section['heading']}\n"
+            f"{section['content']}"
+        ).lower()
+
+        for symbol in changed_symbols:
+            name = symbol.get("name", "")
+
+            if not name:
+                continue
+
+            short_name = name.split(".")[-1].lower()
+
+            if short_name in text:
+                affected.append(section["id"])
+                break
+
+    return sorted(set(affected))

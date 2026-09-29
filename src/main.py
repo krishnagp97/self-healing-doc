@@ -10,7 +10,10 @@ from src.change_detector import detect_changes
 from src.impact_analyzer import find_affected_docs
 from src.staleness_verifier import prepare_review_items
 from src.doc_updater import update_section
-from src.coverage_analyzer import find_undocumented_symbols
+from src.coverage_analyzer import (
+    find_undocumented_symbols,
+    find_potentially_affected_docs,
+)
 
 import json
 import os
@@ -42,7 +45,11 @@ def scan_docs(root):
 
     return sections
 
-def save_results(reviews, undocumented_symbols):
+def save_results(
+    reviews,
+    undocumented_symbols,
+    affected_doc_ids=None,
+):
     """Save analysis results for the GitHub Action."""
     output_file = os.getenv(
         "REVIEW_RESULTS_FILE",
@@ -54,6 +61,7 @@ def save_results(reviews, undocumented_symbols):
             {
                 "reviews": reviews,
                 "undocumented_symbols": undocumented_symbols,
+                "affected_doc_ids": affected_doc_ids or [],
             },
             file,
             indent=2,
@@ -92,8 +100,8 @@ def run(old_path, new_path):
     print("\nAnalyzing documentation coverage...")
 
     undocumented_symbols = find_undocumented_symbols(
-        changes,
-        new_sections,
+    changes,
+    new_sections,
     )
 
     print(
@@ -104,10 +112,27 @@ def run(old_path, new_path):
     for symbol in undocumented_symbols:
         print(f"    - {symbol['id']}")
 
+
+    potentially_affected_doc_ids = find_potentially_affected_docs(
+        changes,
+        new_sections,
+    )
+
+    print(
+        f"  Potentially affected documentation sections: "
+        f"{len(potentially_affected_doc_ids)}"
+    )
+
+    for doc_id in potentially_affected_doc_ids:
+        print(f"    - {doc_id}")
+
+
     save_results(
         reviews=[],
         undocumented_symbols=undocumented_symbols,
+        affected_doc_ids=potentially_affected_doc_ids,
     )
+    
 
     print("\nLinking documentation...")
 
@@ -171,6 +196,7 @@ def run(old_path, new_path):
         return {
             "reviews": [],
             "undocumented_symbols": undocumented_symbols,
+            "affected_doc_ids": potentially_affected_doc_ids,
         }
 
     print("\nDocumentation requiring review")
@@ -246,6 +272,7 @@ def run(old_path, new_path):
     return {
         "reviews": results,
         "undocumented_symbols": undocumented_symbols,
+        "affected_doc_ids": potentially_affected_doc_ids,
     }
 
 
@@ -275,6 +302,7 @@ def main():
     save_results(
         reviews=results["reviews"],
         undocumented_symbols=results["undocumented_symbols"],
+        affected_doc_ids=results["affected_doc_ids"],
     )
 
 if __name__ == "__main__":

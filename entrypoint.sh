@@ -70,6 +70,7 @@ import sys
 results_file = sys.argv[1]
 
 undocumented_symbols = []
+affected_doc_ids = []
 
 if os.path.exists(results_file):
     try:
@@ -78,6 +79,10 @@ if os.path.exists(results_file):
 
         undocumented_symbols = data.get(
             "undocumented_symbols",
+            [],
+        )
+        affected_doc_ids = data.get(
+            "affected_doc_ids",
             [],
         )
 
@@ -126,7 +131,30 @@ else:
 
 No newly added undocumented symbols were detected by the deterministic documentation coverage check.
 """
+affected_docs_section = ""
 
+if affected_doc_ids:
+
+    affected_docs_section = """
+### Documentation potentially affected by code changes
+
+The following documentation sections reference symbols affected by the merged code changes:
+
+""" + "\n".join(
+        f"- `{doc_id}`"
+        for doc_id in affected_doc_ids
+    ) + """
+
+These sections could not be semantically reviewed because the AI service was unavailable.
+"""
+
+else:
+
+    affected_docs_section = """
+### Documentation impact
+
+No documentation sections were identified as potentially affected by the changed symbols.
+"""
 
 # ------------------------------------------------------------
 # Build GitHub comment
@@ -136,9 +164,14 @@ body = """⚠️ **Self-Healing Docs:** AI documentation analysis was temporaril
 
 The AI service could not complete semantic documentation analysis, so no documentation changes were made.
 
-""" + undocumented_section + """
+### Analysis summary
 
-Please review the documentation related to the merged code changes manually.
+- Newly added undocumented symbols: """ + str(len(undocumented_symbols)) + """
+- Documentation sections potentially affected: """ + str(len(affected_doc_ids)) + """
+
+""" + undocumented_section + "\n" + affected_docs_section + """
+
+Please review the documentation above manually.
 
 The Self-Healing Docs Action will not modify documentation when the AI service is unavailable.
 """

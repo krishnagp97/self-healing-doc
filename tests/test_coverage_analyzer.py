@@ -1,5 +1,5 @@
 from src.coverage_analyzer import find_undocumented_symbols
-
+from src.coverage_analyzer import find_potentially_affected_docs
 
 def test_finds_new_undocumented_function():
     changes = {
@@ -114,3 +114,48 @@ def test_detects_new_function_without_documentation():
 
     assert len(result) == 1
     assert result[0]["id"] == "backend/cache.js::getCachedUser"
+
+def test_find_potentially_affected_docs():
+    changes = {
+        "added": [
+            {
+                "id": "src/user_service.py::UserService.update_user",
+                "name": "UserService.update_user",
+            }
+        ],
+        "removed": [],
+        "modified": [
+            {
+                "old": {
+                    "id": "src/user_service.py::UserService.get_user",
+                    "name": "UserService.get_user",
+                },
+                "new": {
+                    "id": "src/user_service.py::UserService.get_user",
+                    "name": "UserService.get_user",
+                },
+            }
+        ],
+    }
+
+    sections = [
+        {
+            "id": "docs.md::get_user",
+            "heading": "get_user",
+            "content": "`UserService.get_user` retrieves a user by ID.",
+        },
+        {
+            "id": "docs.md::Other",
+            "heading": "Other",
+            "content": "Some unrelated documentation.",
+        },
+    ]
+
+    affected = find_potentially_affected_docs(
+        changes,
+        sections,
+    )
+
+    assert affected == [
+        "docs.md::get_user",
+    ]
