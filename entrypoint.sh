@@ -666,7 +666,7 @@ for review in data["reviews"]:
 
     heading = review["heading"]
 
-    heading_level = review["heading_level",1]
+    heading_level = review.get("heading_level", 1)
 
     content = review["suggested_update"]
 
