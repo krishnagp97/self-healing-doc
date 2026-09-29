@@ -96,6 +96,12 @@ if os.path.exists(results_file):
         )
         changed_symbols = []
 
+        for symbol in data.get("changed_symbols", []):
+            symbol_id = symbol.get("id")
+
+            if symbol_id and symbol_id not in changed_symbols:
+                changed_symbols.append(symbol_id)
+
         for review in data.get("reviews", []):
             for change in review.get("changed_symbols", []):
                 symbol = change.get("symbol", {})

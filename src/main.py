@@ -49,6 +49,7 @@ def save_results(
     reviews,
     undocumented_symbols,
     affected_doc_ids=None,
+    changed_symbols=None,
 ):
     """Save analysis results for the GitHub Action."""
     output_file = os.getenv(
@@ -62,6 +63,7 @@ def save_results(
                 "reviews": reviews,
                 "undocumented_symbols": undocumented_symbols,
                 "affected_doc_ids": affected_doc_ids or [],
+                "changed_symbols": changed_symbols or [],
             },
             file,
             indent=2,
@@ -126,11 +128,23 @@ def run(old_path, new_path):
     for doc_id in potentially_affected_doc_ids:
         print(f"    - {doc_id}")
 
+    changed_symbols = []
+
+    for symbol in changes["added"]:
+        changed_symbols.append(symbol)
+
+    for symbol in changes["removed"]:
+        changed_symbols.append(symbol)
+
+    for change in changes["modified"]:
+        changed_symbols.append(change["new"])
+
 
     save_results(
         reviews=[],
         undocumented_symbols=undocumented_symbols,
         affected_doc_ids=potentially_affected_doc_ids,
+        changed_symbols=changed_symbols,
     )
     
 
