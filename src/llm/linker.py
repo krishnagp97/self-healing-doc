@@ -65,7 +65,6 @@ If there is no confident match:
 }}
 """
 
-
 def _call_gemini(prompt):
     api_key = os.getenv("GEMINI_API_KEY")
 
@@ -88,12 +87,20 @@ def _call_gemini(prompt):
             response = client.models.generate_content(
                 model=model,
                 contents=prompt,
+                config={
+                    "response_mime_type": "application/json",
+                },
             )
 
-            text = response.text.strip()
+            text = (response.text or "").strip()
+
+            if not text:
+                raise ValueError(
+                    "Gemini returned an empty response."
+                )
 
             try:
-                return json.loads(text)
+                result = json.loads(text)
 
             except json.JSONDecodeError as exc:
                 print(
@@ -107,6 +114,24 @@ def _call_gemini(prompt):
                     ) from exc
 
                 time.sleep(2 ** attempt)
+                continue
+
+            if not isinstance(result, dict):
+                raise ValueError(
+                    "Gemini JSON response must be an object."
+                )
+
+            if "matches" not in result:
+                raise ValueError(
+                    "Gemini JSON response is missing 'matches'."
+                )
+
+            if not isinstance(result["matches"], list):
+                raise ValueError(
+                    "Gemini 'matches' must be a list."
+                )
+
+            return result
 
         except errors.ClientError as exc:
             print(
@@ -126,6 +151,9 @@ def _call_gemini(prompt):
 
             time.sleep(2 ** attempt)
 
+        except SemanticLinkerError:
+            raise
+
         except Exception as exc:
             print(
                 f"Gemini semantic linker error "
@@ -138,7 +166,6 @@ def _call_gemini(prompt):
                 ) from exc
 
             time.sleep(2 ** attempt)
-
 
 def semantic_link_sections(sections, chunks):
     """
