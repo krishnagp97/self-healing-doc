@@ -603,7 +603,7 @@ self-healing-doc/
 Current release:
 
 ```text
-v1.0.0
+v1.1.0
 ```
 
 The action is distributed as a versioned GitHub Action and can be referenced using the `v1` release:
