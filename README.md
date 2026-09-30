@@ -6,6 +6,22 @@ After a pull request is merged, it compares the repository before and after the 
 
 When an update is required, the action modifies only the affected documentation sections and creates a separate pull request for review.
 
+## Features
+
+* Detects added, removed, and modified code symbols
+* Supports C++, Go, Java, JavaScript, Python, Rust, TypeScript, and TSX
+* Parses Markdown documentation into individual sections
+* Links code symbols to documentation using deterministic and semantic analysis
+* Uses Gemini when semantic reasoning is required
+* Identifies documentation affected by code changes
+* Updates only affected documentation sections
+* Handles nested Markdown sections
+* Detects potentially undocumented newly added symbols
+* Creates separate documentation pull requests
+* Falls back safely to a comment when AI analysis cannot be completed
+
+---
+
 ## The Problem
 
 Documentation often becomes outdated when code changes.
@@ -34,7 +50,7 @@ The code is updated, but the documentation may still describe the old behavior.
 
 The difficult part is not simply finding changed files. A change in one function may affect a specific section of a README or documentation file somewhere else in the repository.
 
-Self-Healing Docs tries to solve this by building a relationship between **code symbols and documentation sections** before determining which documentation needs review.
+Self-Healing Docs addresses this by building a relationship between **code symbols and documentation sections** before determining which documentation needs review.
 
 ---
 
@@ -79,7 +95,7 @@ Gemini Documentation Review
                      Create Documentation PR
 ```
 
-The important part is that Gemini does **not** blindly review the entire repository.
+Gemini does **not** blindly review the entire repository.
 
 The system first narrows the problem down to documentation that may actually be affected by the code changes.
 
@@ -191,7 +207,7 @@ API Usage
 
 when those sections are unrelated to the code change.
 
-This approach also allows files such as `README.md` and documentation files to participate in the same analysis.
+This approach also allows files such as `README.md` and other Markdown documentation files to participate in the same analysis.
 
 ---
 
@@ -228,9 +244,9 @@ Confident   Unresolved /
       Gemini Semantic Linker
 ```
 
-This design is important because Gemini is not required for every documentation section.
-
 Deterministic matching handles straightforward cases, while Gemini is reserved for cases where the relationship requires semantic understanding.
+
+This reduces unnecessary AI calls and keeps the analysis more predictable.
 
 ---
 
@@ -345,9 +361,30 @@ Nested Markdown headings are also handled so that updating one section does not 
 
 ---
 
-# 9. Documentation Pull Request
+# 9. Undocumented Symbols
 
-The action does not directly modify the main branch.
+When new code symbols are added without corresponding documentation, Self-Healing Docs can identify them as potentially undocumented.
+
+For example:
+
+```text
+Added:
+UserService.get_user_preferences
+```
+
+If no suitable documentation reference is found, the action reports the symbol for review.
+
+The system does **not** automatically invent documentation for newly added symbols.
+
+Instead, it reports potentially undocumented symbols on the original pull request so developers can decide whether documentation should be added.
+
+This avoids generating documentation that may not accurately describe the intended behavior of newly added code.
+
+---
+
+# 10. Documentation Pull Request
+
+The action does not directly commit documentation changes to the main branch.
 
 Instead:
 
@@ -373,7 +410,7 @@ This keeps the documentation update reviewable and gives developers the opportun
 
 ---
 
-# 10. Failure Handling
+# 11. Failure Handling
 
 AI services can fail because of:
 
@@ -429,7 +466,7 @@ The main processing pipeline can be viewed as:
        Deterministic         Semantic Linking
           Linking                 |
              |                    |
-             +----------+---------+
+             +----------+----------+
                         |
                         v
                  Change Detector
@@ -470,6 +507,14 @@ Tree-sitter provides the parsing layer, making it possible to add additional lan
 
 ---
 
+# Getting Started
+
+Self-Healing Docs runs as a GitHub Action after a pull request is merged.
+
+For installation, workflow configuration, Gemini API setup, GitHub permissions, and testing instructions, see **[QUICKSTART.md](QUICKSTART.md)**.
+
+---
+
 # Testing
 
 The project includes automated tests for the main components:
@@ -495,7 +540,16 @@ Run the test suite with:
 python -m pytest -q
 ```
 
-The GitHub Action has also been tested through real merged pull request workflows, including AI service failure handling and documentation workflow behavior.
+The GitHub Action has also been tested through real merged pull request workflows, including:
+
+* Removed documented symbols
+* Modified documented symbols
+* Newly added undocumented symbols
+* Unrelated documentation remaining unchanged
+* Successful Gemini analysis
+* AI quota/rate-limit failure handling
+* Automatic documentation pull request creation
+* Fallback comments on the original pull request
 
 ---
 
@@ -549,7 +603,11 @@ self-healing-doc/
 Current release:
 
 ```text
-v1
+v1.0.0
 ```
 
-The action is distributed as a versioned GitHub Action and can be referenced using the `v1` release.
+The action is distributed as a versioned GitHub Action and can be referenced using the `v1` release:
+
+```yaml
+uses: krishnagp97/self-healing-doc@v1
+```
